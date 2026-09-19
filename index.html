@@ -166,6 +166,16 @@
   .checks div.no{color:var(--rose)}
   textarea.field{resize:vertical;min-height:74px;line-height:1.5;font-size:12px;word-break:break-all}
 
+  /* ── python ─────────────────────────────── */
+  .pybox{display:flex;flex-direction:column;gap:10px}
+  .pystat{font-family:var(--mono);font-size:12.5px;color:var(--dim);display:flex;align-items:center;gap:9px;letter-spacing:.04em}
+  .pystat .ok{color:var(--mint)}
+  .pystat .bad{color:var(--rose)}
+  .dotpulse{width:9px;height:9px;border-radius:99px;background:var(--brass);flex:0 0 auto;animation:pulse 1.1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+  .pynote{font-size:13.5px;color:var(--faint);max-width:62ch;line-height:1.55;background:var(--plate2);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px}
+  .pynote b{color:var(--ink)}
+
   /* ── daily home ─────────────────────────── */
   .streak{display:flex;align-items:baseline;gap:7px}
   .streak b{font-family:var(--display);font-size:22px;font-weight:800;color:var(--brass);line-height:1}
@@ -1002,9 +1012,29 @@
     return out;
   }
 
+  /* ───────── picking near-miss wrong answers ───────── */
+  function toks(str){
+    return String(str).toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/)
+      .filter(function(w){ return w.length > 3; });
+  }
+  function similarity(a, b){
+    var A = toks(a), B = toks(b), hits = 0;
+    A.forEach(function(w){ if (B.indexOf(w) >= 0) hits++; });
+    return hits / Math.sqrt((A.length * B.length) || 1);
+  }
+  // the three cards whose meanings read most like this one — so the wrong
+  // answers are all plausible and you have to know the difference
+  function nearest(item, pool, n, field){
+    return pool.filter(function(c){ return c.id !== item.id; })
+      .map(function(c){ return { c:c, s: similarity(item[field], c[field]) + Math.random() * 0.12 }; })
+      .sort(function(a,b){ return b.s - a.s; })
+      .slice(0, n)
+      .map(function(x){ return x.c; });
+  }
+
   /* ───────── question builders ───────── */
   function vocabQ(item, pool){
-    var others = shuffle(pool.filter(function(c){ return c.id !== item.id; })).slice(0,3);
+    var others = nearest(item, pool, 3, "def");
     if (Math.random() < 0.5){
       var opts = shuffle([item.def].concat(others.map(function(o){ return o.def; })));
       return { id:item.id, mono:false, prompt:'What does <code>'+esc(item.term)+'</code> mean?',
@@ -1018,7 +1048,7 @@
              explain:'<b>'+esc(item.term)+'</b> — '+esc(item.def)+'.' };
   }
   function lineQ(item, pool){
-    var others = shuffle(pool.filter(function(c){ return c.id !== item.id; })).slice(0,3);
+    var others = nearest(item, pool, 3, "mean");
     if (Math.random() < 0.55){
       var opts = shuffle([item.mean].concat(others.map(function(o){ return o.mean; })));
       return { id:item.id, mono:false, prompt:'What does this line do?<pre class="qcode">'+highlight(item.code)+'</pre>',
@@ -1119,60 +1149,97 @@
   var MEM = [
   {
     key:"m1", n:"M1", group:"memory", name:"Flashcards", machine:"CARD DECK · SELF-MARKED", tool:"RECALL", tab:"console",
-    body:"<p>Twelve cards a sitting. Front is the term or the line; say the answer out loud <b>before</b> you flip it, then mark yourself honestly.</p><p>Anything you mark <b>not yet</b> comes back more often, here and in the exams, until you get it right twice running. Being honest with the button is the whole mechanism.</p>",
-    goal:"Work through twelve cards, marking each one honestly.",
+    body:"<p>Twelve cards, four answers each. The three wrong ones are picked because they read <b>like</b> the right one — near misses, not obvious duds — so you have to actually know the difference.</p><p>Miss one and it goes to the back of the queue rather than away. The round isn't finished until every card has been answered correctly; your score is how many you got right first time.</p>",
+    goal:"Clear all twelve, and see how many you can get right first time.",
     hints:[
-      "Say it out loud before flipping. Recognising an answer and producing one are different skills, and only one of them is useful.",
-      "Mark <b>not yet</b> if you hesitated. A card you half-knew is exactly the card worth seeing again.",
-      "Run this for five minutes before an exam rather than reading the list over and over — testing yourself beats rereading by a mile."
+      "Answer in your head before you read the four options. If you can only recognise the right answer rather than produce it, you do not know it yet.",
+      "When two options look almost identical, find the single word that differs — that word is usually the whole point of the card.",
+      "Five minutes of this beats twenty minutes of reading the list. Being tested is what fixes things in memory; rereading mostly feels productive."
     ],
-    debrief:"<p>That's the whole trick to remembering this stuff: <strong>retrieve it, don't reread it</strong>. Pulling an answer out of your head is what fixes it there; looking at a list feels productive and does almost nothing.</p><p>A few minutes of cards before each session beats an hour of staring.</p>",
+    debrief:"<p>Two things were working on you there. <strong>Retrieval</strong> — pulling the answer out rather than rereading it — is what actually fixes something in memory. And the near-miss options force you to hold the <em>precise</em> meaning, not a vague sense of the word.</p><p>Getting one wrong and meeting it again four cards later is not a punishment; that gap is roughly where the useful work happens.</p>",
     mount:function(stage, api){
-      var deck = drawWeighted(VOCAB.concat(LINES), 12);
-      var i = 0, flipped = false, done = 0;
+      var pool = VOCAB.concat(LINES);
+      var deck = drawWeighted(pool, 12);
+      var queue = deck.slice();
+      var missed = {}, firstTry = 0, answered = false;
+
       stage.innerHTML = '<div class="cardstack" id="cardstack"></div>';
       var el = $("cardstack");
-      function render(){
-        if (i >= deck.length){
-          var weak = shaky(VOCAB.concat(LINES), 6);
-          el.innerHTML =
-            '<div class="qhead">DECK FINISHED · '+done+' MARKED KNOWN</div>'+
-            (weak.length ? '<div class="qhead" style="margin-top:12px">COMING BACK SOONER</div><div class="shaky">'+
-              weak.map(function(c){ return '<span class="stag">'+esc(c.term || c.code)+'</span>'; }).join("")+'</div>'
-              : '<p class="qtext" style="color:var(--mint)">Nothing shaky on record. Take an exam.</p>')+
-            '<div class="row" style="margin-top:16px"><button class="btn" id="dagain">NEW DECK</button></div>';
-          $("dagain").addEventListener("click", function(){ show(current); });
-          api.solve("M1 · " + done + "/12 KNOWN");
-          return;
-        }
-        var c = deck[i];
-        var front = c.term ? '<div class="cface">'+esc(c.term)+'</div>' : '<pre class="cface mono">'+highlight(c.code)+'</pre>';
-        var back = c.term ? esc(c.def) : esc(c.mean);
+
+      function progress(){
+        var retired = deck.length - queue.length;
+        return '<div class="ebar">' + deck.map(function(_, i){
+          return '<i class="edot' + (i < retired ? " o" : "") + '"></i>';
+        }).join("") + '<span class="escore">' + retired + ' / ' + deck.length + '</span></div>';
+      }
+
+      function results(){
+        var weak = shaky(pool, 6);
         el.innerHTML =
-          '<div class="qhead">CARD '+(i+1)+' OF '+deck.length+'</div>'+
-          '<div class="card'+(flipped?" flipped":"")+'" id="card">'+ front +
-            (flipped ? '<div class="cback">'+back+'</div>' : '<div class="chint">click to flip</div>')+
-          '</div>'+
-          (flipped
-            ? '<div class="row" style="margin-top:14px"><button class="btn" id="cgot">✓ GOT IT</button><button class="btn ghost" id="cnot">✕ NOT YET</button></div>'
-            : '<div class="status" style="margin-top:14px">say it out loud, then flip</div>');
-        $("card").addEventListener("click", function(){ if (!flipped){ flipped = true; render(); } });
-        if (flipped){
-          $("cgot").addEventListener("click", function(){ note(c.id, true); done++; i++; flipped = false; render(); });
-          $("cnot").addEventListener("click", function(){ note(c.id, false); i++; flipped = false; render(); });
-        }
+          '<div class="qhead">ROUND FINISHED</div>' +
+          '<div class="escore-big ' + (firstTry >= 10 ? "pass" : "fail") + '">' + firstTry + ' / ' + deck.length + '</div>' +
+          '<p class="qtext">right first time. ' + (firstTry === deck.length
+            ? "Every one, no second attempts."
+            : "The ones you missed came back until you got them, which is the point of the round.") + '</p>' +
+          (weak.length ? '<div class="qhead">COMING BACK SOONER</div><div class="shaky">' +
+            weak.map(function(c){ return '<span class="stag">' + esc(c.term || c.code) + '</span>'; }).join("") + '</div>' : "") +
+          '<div class="row" style="margin-top:16px"><button class="btn" id="dagain">NEW ROUND</button></div>';
+        $("dagain").addEventListener("click", function(){ show(current); });
+        api.solve("M1 · " + firstTry + "/" + deck.length + " FIRST TRY");
+      }
+
+      function render(){
+        if (!queue.length) return results();
+        var item = queue[0];
+        var q = item.term ? vocabQ(item, VOCAB) : lineQ(item, LINES);
+        answered = false;
+        el.innerHTML = progress() +
+          '<div class="qhead">' + (missed[item.id] ? "SECOND LOOK" : (item.term ? "WHAT DOES THIS MEAN?" : "WHAT DOES THIS LINE DO?")) + '</div>' +
+          '<div class="qtext">' + q.prompt + '</div>' +
+          '<div class="choices">' + q.options.map(function(o, i){
+            return '<button class="choice' + (q.mono ? " mono" : "") + '" data-i="' + i + '">' + o + '</button>';
+          }).join("") + '</div>' +
+          '<div class="qfb" id="qfb"></div>';
+
+        Array.prototype.forEach.call(el.querySelectorAll(".choice"), function(btn){
+          btn.addEventListener("click", function(){
+            if (answered) return;
+            answered = true;
+            var ok = Number(btn.dataset.i) === q.answer;
+            note(q.id, ok);
+            if (ok){
+              btn.classList.add("right");
+              if (!missed[item.id]) firstTry++;
+              queue.shift();
+            } else {
+              btn.classList.add("wrong");
+              el.querySelector('.choice[data-i="' + q.answer + '"]').classList.add("right");
+              missed[item.id] = true;
+              queue.push(queue.shift());   // back of the queue, you will see it again
+            }
+            $("qfb").className = "qfb " + (ok ? "ok" : "no");
+            $("qfb").innerHTML = (ok ? "✓ " : "✕ ") + q.explain +
+              (ok ? "" : " <b>This one comes back.</b>") +
+              ' <button class="nextq" id="nextq">NEXT →</button>';
+            $("nextq").addEventListener("click", render);
+            $("nextq").focus();
+          });
+        });
       }
       render();
       return { scope:{}, source:[
-        "// how the deck picks cards",
+        "// how this round works",
         "//",
-        "// every card carries a record: { seen, wrong, streak }",
-        "// weight = 1 + wrong * 4",
+        "// 12 cards, drawn from a bank weighted by what you keep missing:",
+        "//     weight = 1 + wrong * 4",
         "//",
-        "// a card you miss becomes five times more likely to reappear.",
-        "// two correct answers in a row take one wrong mark back off.",
-        "// that record is shared with the exams — and it lives only in",
-        "// this browser, so nothing is sent anywhere."
+        "// get one wrong and it goes to the BACK of the queue, not the bin —",
+        "// the round is not over until every card has been answered correctly.",
+        "// your score is how many you got right FIRST time.",
+        "//",
+        "// the three wrong answers are not random. they are the three cards",
+        "// whose meanings read most like the right one, so you have to know",
+        "// the difference rather than spot the odd one out."
       ].join("\n") };
     }
   },
@@ -1234,7 +1301,8 @@
       R.lines.forEach(function(ln, i){
         var row = document.createElement("div");
         row.className = "rline"; row.dataset.i = String(i);
-        row.innerHTML = '<span class="rn">'+(i+1)+'</span><pre class="rc">'+highlight(ln.code)+'</pre>';
+        var hl = (spec.lang === "py") ? highlightPy : highlight;
+        row.innerHTML = '<span class="rn">'+(i+1)+'</span><pre class="rc">'+hl(ln.code)+'</pre>';
         row.addEventListener("click", function(){ if (lineMode) answerLine(i); });
         codeEl.appendChild(row);
         var g = document.createElement("div");
@@ -1650,6 +1718,376 @@
     }
   })];
 
+  /* ───────── python: syntax colouring ───────── */
+  function highlightPy(code){
+    var s = esc(code);
+    s = s.replace(/(#[^\n]*)|('(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*")|\b(def|return|if|elif|else|for|while|in|not|and|or|import|from|as|with|try|except|pass|break|continue|lambda|True|False|None)\b|\b(print|len|range|int|str|float|list|dict|sum|type|input|sorted|enumerate)\b|\b(\d+)\b/g,
+      function(m, cm, st, kw, bi, nu){
+        if (cm) return '<span class="cm">'+cm+'</span>';
+        if (st) return '<span class="st">'+st+'</span>';
+        if (kw) return '<span class="kw">'+kw+'</span>';
+        if (bi) return '<span class="at">'+bi+'</span>';
+        return '<span class="nu">'+nu+'</span>';
+      });
+    return s;
+  }
+
+  /* ───────── python: the interpreter ───────── */
+  var PY_VERSION = "0.26.4";
+  var pyPromise = null, pyState = "idle";
+  function loadPy(){
+    if (pyPromise) return pyPromise;
+    pyState = "loading";
+    pyPromise = new Promise(function(resolve, reject){
+      var done = false;
+      var fail = function(why){ if (!done){ done = true; pyState = "failed"; reject(new Error(why)); } };
+      var timer = setTimeout(function(){ fail("timeout"); }, 60000);
+      var s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/pyodide/v" + PY_VERSION + "/full/pyodide.js";
+      s.onerror = function(){ clearTimeout(timer); fail("blocked"); };
+      s.onload = function(){
+        if (typeof window.loadPyodide !== "function"){ clearTimeout(timer); return fail("no loader"); }
+        window.loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v" + PY_VERSION + "/full/" })
+          .then(function(py){
+            clearTimeout(timer);
+            if (done) return;
+            done = true; pyState = "ready";
+            resolve(py);
+          })
+          .catch(function(e){ clearTimeout(timer); fail(e && e.message ? e.message : "load error"); });
+      };
+      document.head.appendChild(s);
+    });
+    return pyPromise;
+  }
+
+  function pyDrill(spec){
+    spec.group = "py"; spec.tab = "console"; spec.lang = "py";
+    spec.tool = spec.tool || "PYTHON";
+    spec.mount = function(stage, api){
+      stage.innerHTML =
+        '<div class="pybox">'+
+          '<div class="pystat" id="pystat"><span class="dotpulse"></span>starting python…</div>'+
+          '<div class="pynote" id="pynote">The first start downloads a real Python interpreter (about 10 MB). After that it is cached and instant, even offline.</div>'+
+        '</div>';
+
+      var st = $("pystat"), note = $("pynote");
+      if (pyState === "ready"){ st.innerHTML = '<span class="ok">✓</span> python ready'; note.textContent = spec.readyNote || "Type Python in the console below."; }
+
+      loadPy().then(function(py){
+        pyObj = py;
+        st.innerHTML = '<span class="ok">✓</span> python ' + (py.version || "3") + " ready";
+        note.textContent = spec.readyNote || "Type Python in the console below.";
+        if (spec.setup){
+          try { py.runPython(spec.setup); } catch(e){}
+        }
+        if (spec.afterReady) spec.afterReady(py, stage);
+        print("sys", "python ready · this is a real interpreter, not a simulation");
+      }).catch(function(err){
+        st.innerHTML = '<span class="bad">✕</span> python could not start (' + esc(err.message) + ')';
+        note.innerHTML = (err.message === "blocked" || err.message === "timeout")
+          ? "This copy of the app is not allowed to download the Python engine — the version running inside Claude blocks it. <b>Open the installed app instead</b> (your GitHub Pages copy) and this level runs for real.<br><br>The reading and exam levels work here either way."
+          : "Something went wrong fetching the engine. Check your connection and reopen this level.";
+        print("err", "python unavailable: " + err.message);
+      });
+
+      return { scope:{}, source: spec.source };
+    };
+    return spec;
+  }
+
+  /* ───────── python: cards ───────── */
+  var PYLINES = [
+    { id:"p-assign", code:'crates = 12',                       mean:"make a name called crates holding 12 — no let or const needed" },
+    { id:"p-print",  code:'print(total)',                      mean:"show the value of total in the output" },
+    { id:"p-f",      code:'print(f"bay {n} ready")',           mean:"print the text with the value of n dropped into the gap" },
+    { id:"p-if",     code:'if weight > 50:',                   mean:"start a block that only runs when weight is over 50 — the colon opens it" },
+    { id:"p-elif",   code:'elif weight > 20:',                 mean:"otherwise, if weight is over 20 — checked only when the if above failed" },
+    { id:"p-else",   code:'else:',                             mean:"what to do when none of the conditions above were true" },
+    { id:"p-def",    code:'def fee(weight):',                  mean:"define a function called fee that takes one value, called weight inside" },
+    { id:"p-return", code:'return base + weight',              mean:"hand that value back and stop the function" },
+    { id:"p-for",    code:'for w in weights:',                 mean:"take each item of weights in turn and call it w" },
+    { id:"p-range",  code:'for i in range(5):',                mean:"run the block five times, with i going 0, 1, 2, 3, 4" },
+    { id:"p-len",    code:'len(weights)',                      mean:"how many items are in the list" },
+    { id:"p-idx",    code:'weights[0]',                        mean:"the first item — positions start at 0, same as JavaScript" },
+    { id:"p-append", code:'heavy.append(w)',                   mean:"add w onto the end of the list called heavy" },
+    { id:"p-dict",   code:'door = {"power": 0, "locked": True}', mean:"a dictionary — like a JavaScript object, but keys are written as strings" },
+    { id:"p-dget",   code:'door["power"]',                     mean:"read the power entry out of the dictionary — square brackets, not a dot" },
+    { id:"p-comp",   code:'heavy = [w for w in weights if w > 50]', mean:"build a new list of just the items over 50 — Python's version of filter" },
+    { id:"p-in",     code:'if "power" in door:',               mean:"check whether that key exists in the dictionary before reading it" },
+    { id:"p-none",   code:'result = None',                     mean:"deliberately empty — Python's version of null" },
+    { id:"p-true",   code:'locked = True',                     mean:"a boolean — note the capital T, unlike JavaScript's true" },
+    { id:"p-comment",code:'# patch 3.2 — pending audit',       mean:"a note for humans; Python ignores everything after the #" },
+    { id:"p-str",    code:'str(count)',                        mean:"turn a number into text so it can be joined to other text" },
+    { id:"p-int",    code:'int("42")',                         mean:"turn text into a whole number" },
+    { id:"p-not",    code:'if not locked:',                    mean:"run this when locked is false" },
+    { id:"p-eq",     code:'if name == "zac":',                 mean:"check whether they are equal — two equals, not three" }
+  ];
+
+  var PYVOCAB = [
+    { id:"pv-indent", term:"indentation",     def:"the spaces at the start of a line — in Python this is what marks a block, instead of curly braces" },
+    { id:"pv-colon",  term:"the colon",       def:"what opens a block at the end of an if, for or def line" },
+    { id:"pv-def",    term:"def",             def:"the word that starts a function definition in Python" },
+    { id:"pv-elif",   term:"elif",            def:"Python's 'else if' — a second condition checked only if the first failed" },
+    { id:"pv-list",   term:"list",            def:"Python's ordered collection, written in square brackets — an array by another name" },
+    { id:"pv-dict",   term:"dictionary",      def:"Python's labelled collection of key: value pairs — close to a JavaScript object" },
+    { id:"pv-tuple",  term:"tuple",           def:"a list that can never be changed once made, written in round brackets" },
+    { id:"pv-fstring",term:"f-string",        def:"text with values dropped into it, written f\"...\" with the values in braces" },
+    { id:"pv-none",   term:"None",            def:"Python's empty value — what JavaScript calls null" },
+    { id:"pv-repl",   term:"the REPL",        def:"an interactive prompt where you type code a line at a time and see the result" },
+    { id:"pv-module", term:"module",          def:"another Python file of code you pull in with import" },
+    { id:"pv-pip",    term:"pip",             def:"the tool that installs Python packages other people have written" },
+    { id:"pv-comp",   term:"list comprehension", def:"building a new list in one line from an old one, with an optional condition" },
+    { id:"pv-append", term:"append",          def:"adding one item onto the end of a list" },
+    { id:"pv-interp", term:"interpreter",     def:"the program that reads your code and runs it, line by line" }
+  ];
+
+  /* ───────── the python ladder ───────── */
+  var PY = [
+  readerLevel({
+    key:"py1", n:"PY1", name:"Same Ideas, New Spelling", machine:"LISTING · pallets.py", lang:"py",
+    body:"<p>This is the first level you already know the answer to. It is the same listing as R1 — the same maths, the same trace — written in Python.</p><p>Read it and notice how little has changed: no <code>let</code>, no semicolons, no braces. The ideas you built on the reading track are the ideas. The spelling is a detail you pick up in an afternoon.</p>",
+    goal:"Trace a Python listing using exactly the method you already use.",
+    hints:[
+      "Read it line by line, exactly as you did in R1. Python runs top to bottom too.",
+      "<code>#</code> starts a comment in Python, where JavaScript uses <code>//</code>. Everything after it is ignored.",
+      "<code>f\"BAY-{pallets}\"</code> is an f-string: the bit in braces gets swapped for the value. It is Python's version of gluing text with a +."
+    ],
+    debrief:"<p>Nothing new happened there, which is the entire point. <strong>A second language is mostly re-learning spelling, not re-learning thinking.</strong></p><p>The differences worth actually remembering are small: no declaration keyword, comments use <code>#</code>, and text-with-values-in-it uses f-strings. Keep going and you'll meet the one real difference in PY2.</p>",
+    gen:function(){
+      var per = pick([3,4,5,6]), mult = ri(3,9), crates = per*mult, sub = ri(2, crates-2);
+      var word = pick(["BAY","DOCK","LANE","PIER"]);
+      var label = word+"-"+mult, left = crates - sub;
+      return {
+        lines:[
+          { code:"crates = "+crates,                       gloss:"make a name called crates holding "+crates+" — no let or const in Python" },
+          { code:"per_pallet = "+per,                      gloss:"Python names are usually written with_underscores, not likeThis" },
+          { code:"pallets = crates // per_pallet",         gloss:"// divides and throws away any remainder, giving a whole number: "+mult },
+          { code:'label = f"'+word+'-{pallets}"',          gloss:'an f-string: the {pallets} gets swapped for '+mult+', giving "'+label+'"' },
+          { code:"crates = crates - "+sub,                 gloss:"read the current crates ("+crates+"), subtract "+sub+", store "+left+" back" },
+          { code:"",                                       gloss:"" },
+          { code:"print(label, crates)",                   gloss:"show both values in the output" }
+        ],
+        questions:[
+          { type:"value", q:"What is in <code>pallets</code>?", answer:String(mult),
+            explain:crates+" divided by "+per+". The <code>//</code> is whole-number division — 7 // 2 is 3, not 3.5.",
+            nudge:"Same as R1: divide crates by per_pallet." },
+          { type:"value", q:"What does <code>label</code> hold?", answer:label, also:['"'+label+'"'],
+            explain:"The f-string swapped {pallets} for its value. Python's answer to gluing text and numbers together.",
+            nudge:"Whatever is inside the braces gets replaced by its value." },
+          { type:"value", q:"What does the last line print for <code>crates</code>?", answer:String(left),
+            explain:"Line 5 overwrote it: "+crates+" − "+sub+" = "+left+". Exactly the same behaviour as JavaScript.",
+            nudge:"Look for the line that writes to crates a second time." },
+          { type:"choice", q:"What is missing from this listing that a JavaScript version would need?",
+            options:[
+              "Nothing — the two are written identically",
+              "let or const in front of each new name, semicolons at the end of lines, and quotes done differently",
+              "The print line — JavaScript cannot print"
+            ], answer:1,
+            explain:"Python drops the declaration keyword and the semicolons. Less ceremony, same meaning. (JavaScript prints too — it just calls it console.log.)",
+            nudge:"Compare line 1 to how you would write it in the console: what word would have to go in front?" }
+        ],
+        scope:{}
+      };
+    }
+  }),
+
+  readerLevel({
+    key:"py2", n:"PY2", name:"Indentation Is the Braces", machine:"LISTING · badge_check.py", lang:"py",
+    body:"<p>Here is the one genuine difference, and it is worth slowing down for. JavaScript marks a block with <code>{ }</code> and ignores your spacing. <b>Python has no braces — the indentation IS the block.</b></p><p>A line indented under an <code>if</code> belongs to it. A line that steps back out does not. Which means whitespace changes what your program does, and reading it means reading the left-hand edge.</p>",
+    goal:"Work out which lines belong to which block, using only the indentation.",
+    hints:[
+      "Read down the left edge before you read the words. Every step to the right opens a block; every step back left closes one.",
+      "The colon at the end of a line is the promise that an indented block follows.",
+      "A line at the far left, inside a function, runs whatever happened in the ifs above it — as long as none of them hit a return first."
+    ],
+    debrief:"<p>Indentation-as-syntax is the thing people complain about and then quietly come to prefer: badly-laid-out Python doesn't run at all, so all Python you ever read is laid out properly.</p><p>Reading it is a habit, not a skill: <strong>look at the left edge first, the words second.</strong></p>",
+    gen:function(){
+      var min = ri(2,6), nameOK = pick(["Ana","Idris","Mei","Tomas","Ruth"]);
+      var okLevel = ri(min, min+4), badLevel = ri(0, min-1);
+      return {
+        lines:[
+          { code:"def enter(badge):",                       gloss:"define a machine called enter; the colon opens its block" },
+          { code:'    if badge["level"] < '+min+":",        gloss:"indented once — inside the function. gate one: is level under "+min+"?" },
+          { code:'        return "DENIED"',                 gloss:"indented twice — inside the if. hand back DENIED and stop" },
+          { code:"",                                        gloss:"" },
+          { code:'    if badge["expired"]:',                gloss:"back to one indent — inside the function, after gate one" },
+          { code:'        return "DENIED - expired"',       gloss:"inside gate two" },
+          { code:"",                                        gloss:"" },
+          { code:'    return "WELCOME, " + badge["name"]',  gloss:"one indent — runs only if neither gate returned first" },
+          { code:"",                                        gloss:"" },
+          { code:'print(enter({"level": '+okLevel+', "expired": False, "name": "'+nameOK+'"}))', gloss:"far left — outside the function. runs it and prints what comes back" }
+        ],
+        questions:[
+          { type:"value", q:"What does the last line print?", answer:"WELCOME, "+nameOK, also:['"WELCOME, '+nameOK+'"'],
+            explain:okLevel+" is not under "+min+" and expired is False, so both gates are skipped and the last indented line runs.",
+            nudge:"Walk that badge through the two gates, same as R3." },
+          { type:"line", q:"Click the line that only runs when the FIRST gate is true.", line:2,
+            explain:"It is indented twice — once for the function, once for the if. That second step right is the whole reason it belongs to the if.",
+            nudge:"Look for the deepest indentation near the top." },
+          { type:"choice", q:"Why is the <code>WELCOME</code> line not part of the second <code>if</code>?",
+            options:[
+              "Because it comes after a blank line",
+              "Because it is indented less than the if's block — it stepped back out, so it belongs to the function instead",
+              "Because return statements are never part of an if"
+            ], answer:1,
+            explain:"Indentation decides membership, full stop. Blank lines mean nothing; the left edge means everything.",
+            nudge:"Compare how far right that line starts against the line above it." },
+          { type:"choice", q:"What would happen if you added four more spaces in front of that <code>WELCOME</code> line?",
+            options:[
+              "Nothing — Python ignores extra spaces",
+              "It would become part of the second if, so anyone who wasn't expired would get no answer back at all",
+              "The file would refuse to save"
+            ], answer:1,
+            explain:"That is the whole danger and the whole power. In JavaScript spacing is decoration; in Python it is the program.",
+            nudge:"If it were indented into the if, when would it run — and when would it not?" }
+        ],
+        scope:{}
+      };
+    }
+  }),
+
+  readerLevel({
+    key:"py3", n:"PY3", name:"Lists and Dicts", machine:"LISTING · manifest.py", lang:"py",
+    body:"<p>Python's two workhorses. A <b>list</b> is an array — square brackets, counted from zero. A <b>dictionary</b> is close to a JavaScript object, with one visible difference: you reach into it with <code>door[\"power\"]</code>, not <code>door.power</code>.</p><p>Then there's the list comprehension, which looks alien for about a day and then becomes the thing you reach for constantly.</p>",
+    goal:"Read a loop, a dictionary lookup and a comprehension, and say what each produces.",
+    hints:[
+      "<code>for crate in crates:</code> hands you each item in turn — no counter, no index. It is the everyday Python loop.",
+      "Square brackets do two different jobs: <code>weights[0]</code> is a position in a list, <code>crate[\"weight\"]</code> is a key in a dictionary.",
+      "Read a comprehension right to left: first the for, then the if, and the bit at the front is what gets kept."
+    ],
+    debrief:"<p><code>[w for w in weights if w &gt; 50]</code> and <code>weights.filter(w =&gt; w &gt; 50)</code> are the same sentence in two accents. Once you can see that, most Python code stops looking foreign.</p><p>The <code>for thing in things:</code> loop is worth adopting as a default — you'll write far fewer counter bugs than you would in JavaScript.</p>",
+    gen:function(){
+      var n = 5, thr = pick([30,50,70]), w = [], tries = 0, kept;
+      do {
+        w = []; for (var i=0;i<n;i++) w.push(ri(5,120));
+        kept = w.filter(function(x){ return x > thr; });
+        tries++;
+      } while ((kept.length === 0 || kept.length === n) && tries < 60);
+      var total = w.reduce(function(a,b){ return a+b; }, 0);
+      return {
+        lines:[
+          { code:"weights = ["+w.join(", ")+"]",            gloss:"a list of "+n+" numbers, at positions 0 to "+(n-1) },
+          { code:'crate = {"id": "C-07", "weight": '+w[0]+"}", gloss:"a dictionary: keys on the left, values on the right" },
+          { code:"",                                         gloss:"" },
+          { code:"total = 0",                                gloss:"start a running total" },
+          { code:"for w in weights:",                        gloss:"take each number in turn and call it w — no counter needed" },
+          { code:"    total = total + w",                    gloss:"indented, so it is the loop's body: add w onto the total" },
+          { code:"",                                         gloss:"" },
+          { code:"heavy = [w for w in weights if w > "+thr+"]", gloss:"build a new list of just the numbers over "+thr },
+          { code:"",                                         gloss:"" },
+          { code:'print(total, len(heavy), crate["weight"])', gloss:"print the total, how many heavy ones, and the crate's weight" }
+        ],
+        questions:[
+          { type:"value", q:"What is <code>total</code> after the loop?", answer:String(total),
+            explain:"Every number gets added — there is no condition inside this loop. "+w.join(" + ")+" = "+total+".",
+            nudge:"The loop body has no if in it, so nothing is skipped." },
+          { type:"value", q:"How many items end up in <code>heavy</code>? (<code>len(heavy)</code>)", answer:String(kept.length),
+            explain:"Only "+kept.join(", ")+" are over "+thr+" — that's "+kept.length+".",
+            nudge:"Count how many of the numbers are bigger than "+thr+"." },
+          { type:"value", q:"What does <code>crate[\"weight\"]</code> give you?", answer:String(w[0]),
+            explain:"Square brackets with a key in quotes is how you read a dictionary. The dot you'd use in JavaScript does something else in Python.",
+            nudge:"Look at the dictionary on line 2 and find that key." },
+          { type:"choice", q:"Which JavaScript line means the same as <code>heavy = [w for w in weights if w &gt; "+thr+"]</code>?",
+            options:[
+              "const heavy = weights.map(w =&gt; w &gt; "+thr+")",
+              "const heavy = weights.filter(w =&gt; w &gt; "+thr+")",
+              "const heavy = weights.length &gt; "+thr
+            ], answer:1,
+            explain:"Keeping the items that pass a test is filter. map would convert every item instead, and hand you a list of true/false.",
+            nudge:"Is it keeping some items, or converting all of them?" }
+        ],
+        scope:{}
+      };
+    }
+  }),
+
+  pyDrill({
+    key:"py4", n:"PY4", name:"A Real Python Prompt", machine:"PYTHON 3 · LIVE",
+    body:"<p>The console below stops being JavaScript on this level. It is a genuine Python interpreter, running inside the page — the same Python that runs on servers, just compiled to work in a browser.</p><p>Everything you type here is real. If it works here it works in a file on your Mac.</p>",
+    goal:"Get comfortable at the prompt: print, store, format and inspect.",
+    readyNote:"The console below is Python now. Try print(\"hello\").",
+    setup: "weights = [4, 9, 2, 7]\ncrates = 12\n",
+    tasks:[
+      { label:"Print something — <code>print(\"hello\")</code>", test:function(c){ return /print\s*\(/.test(c.code); } },
+      { label:"Make a variable — <code>bays = 4</code> (no let, no const)", test:function(c){ return c.py && typeof c.py.globals.get("bays") === "number"; } },
+      { label:"Use an f-string — <code>print(f\"{bays} bays ready\")</code>", test:function(c){ return /f["']/.test(c.code) && /print\s*\(/.test(c.code); } },
+      { label:"Ask what something is — <code>type(crates)</code>", test:function(c){ return /type\s*\(/.test(c.code); } },
+      { label:"Look at the list that's already here — <code>weights</code>", test:function(c){ return /^weights(\[\d+\])?$|len\(weights\)/.test(c.code.trim()); } }
+    ],
+    hints:[
+      "Python prints with <code>print(x)</code> where JavaScript uses <code>console.log(x)</code>. Same job, shorter name.",
+      "No <code>let</code> or <code>const</code> — you write <code>bays = 4</code> and that is the whole declaration.",
+      "An f-string is a normal string with an <code>f</code> stuck on the front: <code>f\"{bays} bays ready\"</code>. Anything in braces gets replaced by its value."
+    ],
+    debrief:"<p>You just ran real Python. Not a lesson about Python — the actual interpreter, evaluating what you typed.</p><p>Two habits to take with you: <code>print()</code> is how you see inside a running program, and <code>type(x)</code> is how you settle an argument about what something actually is. Between them they solve most early confusion.</p>",
+    source:[
+      "# this console is running real Python 3, compiled to run in a browser.",
+      "#",
+      "# already defined for you:",
+      "#   weights = [4, 9, 2, 7]",
+      "#   crates  = 12",
+      "#",
+      "# the differences from the JavaScript console you have been using:",
+      "#",
+      "#   console.log(x)        ->  print(x)",
+      "#   let bays = 4          ->  bays = 4",
+      "#   `${bays} bays`        ->  f\"{bays} bays\"",
+      "#   typeof x              ->  type(x)",
+      "#   x === y               ->  x == y",
+      "#   true / false / null   ->  True / False / None"
+    ].join("\n")
+  }),
+
+  pyDrill({
+    key:"py5", n:"PY5", name:"Blocks That Run", machine:"PYTHON 3 · LIVE",
+    body:"<p>Now write the shapes rather than read them. A function, a loop, and a total — the three things every program is made of.</p><p>For anything with a colon on the end, press <b>Shift+Enter</b> to start the next line, indent it with four spaces, then Enter to run the whole thing.</p>",
+    goal:"Define a function, loop over a list, and build up a total — in Python.",
+    readyNote:"Shift+Enter makes a new line. Four spaces to indent. Enter runs it.",
+    setup: "weights = [4, 9, 2, 7]\ntotal = 0\n",
+    tasks:[
+      { label:"Define a function:<br><code>def double(n):</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;return n * 2</code>", test:function(c){ return c.py && !!c.py.globals.get("double"); } },
+      { label:"Run it — <code>double(21)</code>", test:function(c){ return /double\s*\(/.test(c.code) && typeof c.result === "number"; } },
+      { label:"A counted loop — <code>for i in range(3): print(i)</code>", test:function(c){ return /for\s+\w+\s+in\s+range\s*\(/.test(c.code); } },
+      { label:"Loop the list and total it up, so <code>total</code> becomes 22", test:function(c){ return c.py && c.py.globals.get("total") === 22; } }
+    ],
+    hints:[
+      "The colon at the end of <code>def double(n):</code> promises an indented block. Shift+Enter, then four spaces, then <code>return n * 2</code>.",
+      "<code>range(3)</code> gives you 0, 1, 2 — it stops before the number, exactly like <code>i &lt; 3</code> does in JavaScript.",
+      "For the total:<br><code>total = 0</code><br><code>for w in weights:</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;total = total + w</code><br>4 + 9 + 2 + 7 is 22."
+    ],
+    debrief:"<p>That's a function, a counted loop, a collection loop and an accumulator — the same four things you drilled in JavaScript, now in Python, written by you.</p><p>You are at the point where the honest next move is to stop doing exercises and write something you actually want. Ask me and we'll start one.</p>",
+    source:[
+      "# a function",
+      "def double(n):",
+      "    return n * 2          # four spaces. the indent is the block.",
+      "",
+      "# a counted loop",
+      "for i in range(3):",
+      "    print(i)              # 0, 1, 2 — range stops BEFORE the number",
+      "",
+      "# a loop over a collection, building a total",
+      "total = 0",
+      "for w in weights:",
+      "    total = total + w     # or the shorthand:  total += w",
+      "",
+      "# in this console: Shift+Enter for a new line, Enter to run."
+    ].join("\n")
+  }),
+
+  examLevel({
+    key:"py6", n:"PY6", name:"Python Exam", machine:"EXAM · PYTHON", count:10, pass:8, tool:"EXAM · PY",
+    pool:function(){ return PYVOCAB.concat(PYLINES); },
+    body:"<p>Ten questions on Python words and Python lines, drawn fresh each time from a bank of "+(15+24)+" cards. Same format as the other exams, and it feeds the same record of what you keep forgetting.</p><p>Eight or better passes. Works anywhere, including on your phone — no interpreter needed to know what a line means.</p>",
+    goal:"Score 8 or more out of 10 on Python.",
+    hints:[
+      "When two options look close, pick the one that says what the line DOES, not what it looks like.",
+      "Watch the JavaScript habits: Python uses <code>==</code> where you have been writing <code>===</code>, and capital <code>True</code> / <code>False</code> / <code>None</code>.",
+      "Dictionary access is square brackets with the key in quotes. If an option uses a dot, it is probably the decoy."
+    ],
+    debrief:"<p>The vocabulary is the bit that makes documentation readable, and documentation is how you'll actually learn the rest. Once <em>list comprehension</em>, <em>f-string</em> and <em>dictionary</em> mean something to you, most Python answers online stop being noise.</p>"
+  })];
+
   var TRAIN = [
   {
     key:"d1", n:"A1", group:"train", name:"Values", machine:"CONSOLE · WARM-UP", tool:"CONSOLE", tab:"console",
@@ -2046,10 +2484,11 @@
 
   HACKS.forEach(function(L){ L.group = "hack"; });
   TRAIN.forEach(function(L){ L.group = "train"; });
-  var LEVELS = READ.concat(MEM, TRAIN, HACKS);
+  PY.forEach(function(L){ L.group = "py"; });
+  var LEVELS = READ.concat(MEM, TRAIN, HACKS, PY);
 
   /* ───────── daily engine ───────── */
-  var XP = { read:20, memory:20, train:25, hack:40, daily:0 };
+  var XP = { read:20, memory:20, train:25, hack:40, py:25, daily:0 };
   var DAY_MS = 86400000;
   function dayStamp(d){
     d = d || new Date();
@@ -2075,11 +2514,15 @@
 
     var readDone = READ.filter(function(L){ return solved[L.key]; }).length;
     var trainLeft = TRAIN.filter(function(L){ return !solved[L.key]; });
+    var pyLeft    = PY.filter(function(L){ return !solved[L.key]; });
     var hackLeft  = HACKS.filter(function(L){ return !solved[L.key]; });
+    var pyStarted = PY.some(function(L){ return solved[L.key]; });
     if (readDone < 3) add(rd[1].key);
+    else if (pyStarted && pyLeft.length) add(pyLeft[0].key);
     else if (trainLeft.length) add(trainLeft[0].key);
+    else if (pyLeft.length) add(pyLeft[0].key);
     else if (hackLeft.length) add(hackLeft[0].key);
-    else add(pick(TRAIN.concat(HACKS)).key);
+    else add(pick(TRAIN.concat(HACKS, PY)).key);
 
     while (out.length < 3) add(pick(LEVELS.filter(function(L){ return L.group !== "daily"; })).key);
     return out.slice(0,3);
@@ -2149,7 +2592,7 @@
           var found = levelByKey(t.key);
           if (!found) return "";
           var L = found.L;
-          var kindLabel = L.group === "read" ? "READING" : L.group === "memory" ? "MEMORY" : L.group === "train" ? "DRILL" : "BREAK-IN";
+          var kindLabel = L.group === "read" ? "READING" : L.group === "memory" ? "MEMORY" : L.group === "train" ? "DRILL" : L.group === "py" ? "PYTHON" : "BREAK-IN";
           return '<div class="dtask'+(t.done?" done":"")+'">'+
             '<span class="dmark">'+(t.done?"✓":(i+1))+'</span>'+
             '<div class="dmeta"><span class="dkind">'+kindLabel+' · '+esc(L.n || "")+'</span>'+
@@ -2159,7 +2602,7 @@
           '</div>';
         }).join("");
 
-        var groups = [["read","READING",READ.length],["memory","MEMORY",MEM.length],["train","DRILLS",TRAIN.length],["hack","BREAK-INS",HACKS.length]];
+        var groups = [["read","READING",READ.length],["memory","MEMORY",MEM.length],["train","DRILLS",TRAIN.length],["hack","BREAK-INS",HACKS.length],["py","PYTHON",PY.length]];
         var prog = groups.map(function(g){
           var n = LEVELS.filter(function(L){ return L.group === g[0] && solved[L.key]; }).length;
           return '<div class="pgrp"><span class="pk">'+g[1]+'</span><div class="pbar"><i style="width:'+(n/g[2]*100)+'%"></i></div><span class="pv">'+n+'/'+g[2]+'</span></div>';
@@ -2224,7 +2667,7 @@
       lastGroup = L.group;
       var h = document.createElement("div");
       h.className = "rail-head";
-      h.textContent = (L.group === "daily") ? "DAILY" : (L.group === "read") ? "READING" : (L.group === "memory") ? "MEMORY" : (L.group === "train") ? "TRAINING" : "BREAK-INS";
+      h.textContent = (L.group === "daily") ? "DAILY" : (L.group === "read") ? "READING" : (L.group === "memory") ? "MEMORY" : (L.group === "train") ? "TRAINING" : (L.group === "py") ? "PYTHON" : "BREAK-INS";
       rail.appendChild(h);
     }
     var b = document.createElement("button");
@@ -2354,7 +2797,34 @@
   }
   function killTimersOnly(){ timers.forEach(function(id){ clearInterval(id); clearTimeout(id); }); timers = []; }
 
+  var pyObj = null;
+  function runPython(code){
+    print("in", code);
+    history.push(code); hIndex = history.length;
+    if (!pyObj){ print("err", "python is still starting — give it a moment"); return; }
+    var buf = [];
+    try { pyObj.setStdout({ batched: function(t){ buf.push(t); } }); } catch(e){}
+    try { pyObj.setStderr({ batched: function(t){ buf.push(t); } }); } catch(e){}
+    var res, failed = false;
+    try { res = pyObj.runPython(code); }
+    catch(err){
+      failed = true;
+      var msg = String((err && err.message) || err).trim().split("\n");
+      print("err", msg.slice(-2).join(" · "));
+    }
+    buf.forEach(function(line){ if (String(line).length) print("log", String(line).replace(/\n$/, "")); });
+    var plain;
+    if (!failed && res !== undefined && res !== null){
+      plain = res;
+      try { if (res.toJs) plain = res.toJs(); } catch(e){}
+      print("res", fmt(plain));
+      try { if (res.destroy) res.destroy(); } catch(e){}
+    }
+    checkTasks(code, plain);
+  }
+
   function run(code){
+    if (LEVELS[current] && LEVELS[current].lang === "py") return runPython(code);
     if (!code.trim()) return;
     print("in", code);
     history.push(code); hIndex = history.length;
@@ -2397,7 +2867,7 @@
   function checkTasks(code, result){
     var L = LEVELS[current];
     if (!L.tasks || !taskState) return;
-    var ctx = { code: code || "", result: result, scope: active.scope };
+    var ctx = { code: code || "", result: result, scope: active.scope, py: pyObj };
     var changed = false;
     L.tasks.forEach(function(t, i){
       if (taskState[i]) return;
@@ -2436,7 +2906,7 @@
     if (checkTimer){ clearInterval(checkTimer); checkTimer = null; }
     LEVELS.forEach(function(x, j){ x.el.setAttribute("aria-current", String(j === i)); });
 
-    var kind = (L.group === "train") ? "DRILL " : (L.group === "read") ? "ROUND " : (L.group === "memory") ? "" : "LEVEL ";
+    var kind = (L.group === "train") ? "DRILL " : (L.group === "read") ? "ROUND " : (L.group === "memory" || L.group === "py") ? "" : "LEVEL ";
     $("winK").textContent = (L.group === "hack") ? "CRACKED · CODE" : "ROUND CLEARED";
     var roundTxt = (rounds[L.key]||0) > 1 ? "×"+rounds[L.key]+" ROUNDS" : ((rounds[L.key]||0) === 1 ? "×1 ROUND" : "");
     $("briefTop").innerHTML = (L.group === "daily") ? '<span class="chip tool">HOME</span>' :
@@ -2481,7 +2951,7 @@
       taskState = null;
       $("tasks").hidden = true;
     }
-    $("src").innerHTML = highlight(built.source);
+    $("src").innerHTML = (L.lang === "py" ? highlightPy : highlight)(built.source);
     renderHints(L);
     $("debrief").innerHTML = L.debrief || "";
 
@@ -2494,6 +2964,9 @@
     $("toolDeck").hidden = isHome;
     $("asideRow").hidden = isHome;
     document.querySelector(".goal").hidden = isHome;
+    $("cmd").placeholder = (L.lang === "py")
+      ? "type Python · Shift+Enter for a new line"
+      : "type a command · Enter to run";
     if (!isHome) selectTab(L.tab);
     paintProgress();
   }
