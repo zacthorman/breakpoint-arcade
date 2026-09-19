@@ -1,0 +1,2520 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Breakpoint Arcade</title>
+<meta name="description" content="Learn to read and write code by hacking small browser games. Three tasks a day.">
+<meta name="theme-color" content="#15111f">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Arcade">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  html{color-scheme:dark;background:#15111f}
+  :root{padding-top:env(safe-area-inset-top, 0px);padding-bottom:env(safe-area-inset-bottom, 0px)}
+  img{max-width:100%}
+</style>
+<style>
+  :root{
+    --ground:#15111f;
+    --plate:#1d1830;
+    --plate2:#251f3c;
+    --plate3:#2e2749;
+    --line:#382f56;
+    --line-soft:#2c2545;
+    --ink:#ede7f7;
+    --dim:#a79bc2;
+    --faint:#7468a0;
+    --brass:#e8b64c;
+    --brass-dim:#8a6c2c;
+    --rose:#e8698c;
+    --mint:#5fd3a8;
+    --sky:#7fb2f0;
+    --shadow:0 10px 30px rgba(8,5,18,.55);
+    color-scheme:dark;
+    --display:"Bricolage Grotesque","Trebuchet MS",sans-serif;
+    --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1100px 620px at 78% -8%, rgba(232,182,76,.08), transparent 62%),
+      radial-gradient(900px 500px at 4% 102%, rgba(127,178,240,.07), transparent 60%),
+      var(--ground);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:15px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .shell{max-width:1140px;margin:0 auto;padding:0 16px;padding-block:22px 64px}
+
+  /* ── header ─────────────────────────────── */
+  .top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 22px;padding-bottom:18px;border-bottom:1px solid var(--line-soft)}
+  .wordmark{font-family:var(--display);font-weight:800;font-size:clamp(26px,4.6vw,38px);letter-spacing:-.02em;line-height:1;margin:0}
+  .wordmark em{font-style:normal;color:var(--brass)}
+  .tagline{color:var(--dim);font-size:13.5px;margin:6px 0 0;max-width:46ch}
+  .score{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .pips{display:flex;gap:5px}
+  .pip{width:12px;height:6px;border-radius:99px;background:var(--line);}
+  .pip.on{background:var(--mint)}
+  .pip.tr.on{background:var(--sky)}
+  .score-n{font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.06em;font-variant-numeric:tabular-nums}
+
+  /* ── layout ─────────────────────────────── */
+  .grid{display:grid;grid-template-columns:232px minmax(0,1fr);gap:24px;margin-top:22px;align-items:start}
+  @media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr);gap:18px}}
+
+  .rail{display:flex;flex-direction:column;gap:6px;min-width:0;position:sticky;top:env(safe-area-inset-top, 0px)}
+  @media (max-width:820px){
+    .rail{position:static;flex-direction:row;overflow-x:auto;gap:8px;padding-bottom:6px;scrollbar-width:thin}
+  }
+  .rail-head{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--faint);padding:10px 0 6px 2px}
+  .rail-head:first-child{padding-top:0}
+  @media (max-width:820px){.rail-head{display:none}}
+  .lv{
+    display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;
+    background:transparent;border:1px solid transparent;border-radius:9px;
+    padding:9px 11px;color:var(--dim);font-family:var(--sans);font-size:13.5px;cursor:pointer;
+    transition:background .14s,border-color .14s,color .14s;
+  }
+  @media (max-width:820px){.lv{width:auto;flex:0 0 auto;white-space:nowrap}}
+  .lv:hover{background:var(--plate);color:var(--ink)}
+  .lv[aria-current="true"]{background:var(--plate2);border-color:var(--line);color:var(--ink)}
+  .lv .n{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.04em}
+  .lv[aria-current="true"] .n{color:var(--brass)}
+  .lv .tick{margin-left:auto;color:var(--mint);font-size:12px;opacity:0}
+  .lv.done .tick{opacity:1}
+  @media (max-width:820px){.lv .tick{margin-left:4px}}
+
+  /* ── panels ─────────────────────────────── */
+  .main{min-width:0}
+  .pane{min-width:0}
+  .panel{min-width:0;background:var(--plate);border:1px solid var(--line-soft);border-radius:14px;box-shadow:var(--shadow)}
+  .brief{padding:20px 22px}
+  .brief-top{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px}
+  .chip{font-family:var(--mono);font-size:10px;letter-spacing:.14em;padding:3px 8px;border-radius:5px;background:var(--plate3);color:var(--dim);border:1px solid var(--line)}
+  .chip.tool{color:var(--brass);border-color:var(--brass-dim)}
+  .chip.solved{color:var(--mint);border-color:#2f6a55;background:rgba(95,211,168,.08)}
+  h2.lv-title{font-family:var(--display);font-weight:700;font-size:clamp(21px,3.4vw,27px);letter-spacing:-.015em;margin:0 0 8px;text-wrap:balance}
+  .brief p{margin:0 0 10px;color:var(--dim);max-width:68ch}
+  .brief p:last-child{margin-bottom:0}
+  .brief b{color:var(--ink);font-weight:600}
+  .goal{margin-top:14px;padding:11px 13px;border-left:2px solid var(--brass);background:rgba(232,182,76,.05);border-radius:0 8px 8px 0}
+  .goal span{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--brass);display:block;margin-bottom:3px}
+  .goal p{margin:0;color:var(--ink)}
+
+  /* ── stage ──────────────────────────────── */
+  .stage-wrap{margin-top:16px;padding:0;overflow:hidden}
+  .stage-bar{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--line-soft);background:var(--plate2);border-radius:14px 14px 0 0}
+  .dot{width:9px;height:9px;border-radius:99px;background:var(--line)}
+  .stage-bar .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--faint)}
+  #stage{padding:22px;min-height:190px;display:flex;flex-direction:column;justify-content:center}
+  .win{margin:0;padding:14px 16px;border-top:1px solid #2f6a55;background:rgba(95,211,168,.09);display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+  .win .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--mint)}
+  .win .v{font-family:var(--mono);font-size:15px;color:var(--ink);font-weight:600}
+
+  /* stage furniture */
+  .field{font-family:var(--mono);font-size:14px;background:var(--plate3);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 11px;min-width:0;width:100%}
+  .field:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
+  .btn{font-family:var(--mono);font-size:12px;letter-spacing:.1em;background:var(--brass);color:#241a05;border:0;border-radius:8px;padding:10px 16px;cursor:pointer;font-weight:600}
+  .btn:hover{filter:brightness(1.08)}
+  .btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .btn[disabled]{background:var(--plate3);color:var(--faint);cursor:not-allowed;filter:none}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--dim)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .row .field{flex:1 1 180px}
+  .status{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--dim)}
+  .status.bad{color:var(--rose)}
+  .status.good{color:var(--mint)}
+  .readout{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  .door{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px}
+  @media (max-width:640px){.door{grid-template-columns:1fr}}
+  .door-plate{border:1px solid var(--line);border-radius:10px;padding:18px;background:linear-gradient(160deg,var(--plate2),var(--plate))}
+  .door-label{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--faint)}
+  .door-stencil{font-family:var(--mono);font-size:18px;letter-spacing:.1em;margin:10px 0 8px;color:var(--dim)}
+  .door-note{margin:0;font-size:13px;color:var(--faint)}
+
+  .sheet{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:14px}
+  .cell{background:var(--plate2);border:1px solid var(--line-soft);border-radius:9px;padding:10px 12px}
+  .cell .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--faint);display:block}
+  .cell .v{font-family:var(--mono);font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .cell .v.big{font-size:22px;color:var(--brass)}
+
+  .bar{height:7px;border-radius:99px;background:var(--plate3);overflow:hidden;margin:4px 0 14px}
+  .bar i{display:block;height:100%;background:var(--brass);width:0%;transition:width .12s linear}
+
+  .grid25{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;max-width:330px;margin:0 auto 14px}
+  .tile{aspect-ratio:1/1;border-radius:8px;background:var(--plate2);border:1px solid var(--line-soft);cursor:pointer;padding:0}
+  .tile.hot{background:var(--brass);border-color:var(--brass);box-shadow:0 0 16px rgba(232,182,76,.4)}
+  .tile:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+
+  .checks{display:flex;flex-direction:column;gap:4px;margin-top:12px;font-family:var(--mono);font-size:12px}
+  .checks div{color:var(--faint)}
+  .checks div.ok{color:var(--mint)}
+  .checks div.no{color:var(--rose)}
+  textarea.field{resize:vertical;min-height:74px;line-height:1.5;font-size:12px;word-break:break-all}
+
+  /* ── daily home ─────────────────────────── */
+  .streak{display:flex;align-items:baseline;gap:7px}
+  .streak b{font-family:var(--display);font-size:22px;font-weight:800;color:var(--brass);line-height:1}
+  .streak span{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--faint)}
+  .todaybox{display:flex;align-items:center;gap:8px}
+  .tdots{display:flex;gap:4px}
+  .tdot{width:11px;height:11px;border-radius:3px;background:var(--line);border:1px solid var(--line)}
+  .tdot.on{background:var(--mint);border-color:var(--mint)}
+  .home{display:flex;flex-direction:column}
+  .hstat{display:flex;align-items:baseline;gap:12px}
+  .bignum{font-family:var(--display);font-size:clamp(46px,9vw,66px);font-weight:800;color:var(--brass);line-height:.9}
+  .bigl{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--faint);display:flex;flex-direction:column;gap:3px}
+  .bigl span{color:var(--dim)}
+  .week{display:flex;gap:6px;margin-top:16px}
+  .wday{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
+  .wday span{font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+  .wday i{display:block;width:100%;height:7px;border-radius:99px;background:var(--plate3)}
+  .wday.hit i{background:var(--mint)}
+  .wday.today i{box-shadow:0 0 0 1px var(--brass)}
+  .dtasks{display:flex;flex-direction:column;gap:8px}
+  .dtask{display:flex;align-items:center;gap:12px;background:var(--plate2);border:1px solid var(--line-soft);border-radius:10px;padding:11px 13px}
+  .dtask.done{opacity:.6;border-color:var(--line-soft)}
+  .dmark{font-family:var(--mono);font-size:12px;width:22px;height:22px;flex:0 0 auto;border-radius:99px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--faint)}
+  .dtask.done .dmark{color:var(--mint);border-color:var(--mint)}
+  .dmeta{display:flex;flex-direction:column;min-width:0;flex:1}
+  .dkind{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--faint)}
+  .dname{font-size:14.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+  .ddone{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--mint)}
+  .prog{display:flex;flex-direction:column;gap:8px}
+  .pgrp{display:flex;align-items:center;gap:10px}
+  .pk{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--faint);width:74px;flex:0 0 auto}
+  .pbar{flex:1;height:6px;border-radius:99px;background:var(--plate3);overflow:hidden}
+  .pbar i{display:block;height:100%;background:var(--sky)}
+  .pv{font-family:var(--mono);font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums;width:34px;text-align:right}
+  .xprow{display:flex;justify-content:space-between;margin-top:16px;padding-top:12px;border-top:1px solid var(--line-soft);font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.06em}
+
+  /* ── memory furniture ───────────────────── */
+  .ebar{display:flex;align-items:center;gap:5px;margin-bottom:14px}
+  .edot{width:16px;height:5px;border-radius:99px;background:var(--line)}
+  .edot.o{background:var(--mint)}
+  .edot.x{background:var(--rose)}
+  .edot.now{background:var(--brass)}
+  .escore{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+  .escore-big{font-family:var(--display);font-size:46px;font-weight:800;line-height:1;margin:2px 0 12px;font-variant-numeric:tabular-nums}
+  .escore-big.pass{color:var(--mint)}
+  .escore-big.fail{color:var(--brass)}
+  .misslist{margin:0 0 14px;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+  .misslist li{font-size:13.5px;color:var(--dim);padding-left:12px;border-left:2px solid var(--rose)}
+  .shaky{display:flex;flex-wrap:wrap;gap:6px}
+  .stag{font-family:var(--mono);font-size:11px;background:var(--plate3);border:1px solid var(--line);color:var(--brass);border-radius:6px;padding:4px 8px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .choice.mono{font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;word-break:break-word}
+  .qcode{margin:10px 0 0;font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--plate2);border:1px solid var(--line-soft);border-radius:8px;padding:10px 12px;overflow-x:auto}
+  .nextq{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;background:var(--plate3);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:4px 10px;margin-left:8px;cursor:pointer;white-space:nowrap}
+  .nextq:hover{border-color:var(--brass-dim);color:var(--brass)}
+  .card{background:linear-gradient(160deg,var(--plate2),var(--plate));border:1px solid var(--line);border-radius:12px;padding:26px 20px;min-height:132px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;cursor:pointer;text-align:center}
+  .card.flipped{cursor:default;border-color:var(--brass-dim)}
+  .cface{font-family:var(--display);font-size:clamp(22px,4vw,30px);font-weight:700;color:var(--ink);margin:0;letter-spacing:-.01em}
+  .cface.mono{font-family:var(--mono);font-size:clamp(14px,2.6vw,18px);font-weight:400;color:var(--brass);white-space:pre-wrap;word-break:break-word}
+  .cback{font-size:15px;color:var(--sky);max-width:46ch;line-height:1.5;border-top:1px solid var(--line);padding-top:12px}
+  .chint{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--faint)}
+
+  /* ── reading furniture ──────────────────── */
+  .rcode{font-family:var(--mono);font-size:12.5px;line-height:1.6;overflow-x:auto}
+  .rline{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;align-items:start;border-radius:6px;padding:1px 4px;border:1px solid transparent}
+  .rline .rn{color:var(--faint);font-size:10.5px;text-align:right;padding-top:3px;font-variant-numeric:tabular-nums}
+  .rline .rc{margin:0;font-family:var(--mono);white-space:pre;color:var(--dim)}
+  .rcode.pick .rline{cursor:pointer}
+  .rcode.pick .rline:hover{background:var(--plate2);border-color:var(--brass-dim)}
+  .rgloss{margin:2px 0 6px 40px;font-family:var(--sans);font-size:12.5px;color:var(--sky);padding-left:9px;border-left:1px solid var(--line)}
+  .qcard{margin-top:18px;border-top:1px solid var(--line-soft);padding-top:15px}
+  .qhead{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--faint);margin-bottom:7px}
+  .qtext{margin:0 0 13px;font-size:15px;color:var(--ink);max-width:62ch}
+  .choices{display:flex;flex-direction:column;gap:7px}
+  .choice{text-align:left;font-family:var(--sans);font-size:13.5px;background:var(--plate2);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:10px 13px;cursor:pointer;line-height:1.45}
+  .choice:hover{border-color:var(--brass-dim)}
+  .choice.right{border-color:var(--mint);color:var(--mint)}
+  .choice.wrong{border-color:var(--rose);opacity:.5}
+  .choice:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
+  .qfb{margin-top:11px;font-size:13.5px;min-height:20px;max-width:62ch;line-height:1.5}
+  .qfb.ok{color:var(--mint)}
+  .qfb.no{color:var(--rose)}
+  .replay{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.12em;background:var(--plate3);border:1px solid var(--line);color:var(--dim);border-radius:6px;padding:4px 9px;cursor:pointer}
+  .replay:hover{color:var(--brass);border-color:var(--brass-dim)}
+  .tally{display:flex;gap:10px;flex-wrap:wrap}
+  .tg{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--faint);display:flex;gap:5px;align-items:baseline}
+  .tg b{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+  .tg.read b{color:var(--sky)}
+  .tg.train b{color:var(--brass)}
+  .tg.hack b{color:var(--mint)}
+
+  /* ── training furniture ─────────────────── */
+  .tasks{border-top:1px solid var(--line-soft);padding:13px 16px;display:flex;flex-direction:column;gap:7px;background:rgba(127,178,240,.045)}
+  .tasks-head{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--faint)}
+  .task{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink)}
+  .task .mk{font-family:var(--mono);color:var(--faint);flex:0 0 auto;line-height:1.5}
+  .task.done{color:var(--faint)}
+  .task.done .mk{color:var(--mint)}
+  .mini{font-family:var(--mono);font-size:12px;color:var(--ink);margin:6px 0 0;white-space:pre-wrap;word-break:break-word}
+  .chrow{display:flex;flex-wrap:wrap;gap:5px}
+  .chcell{display:flex;flex-direction:column;align-items:center;gap:1px;background:var(--plate2);border:1px solid var(--line-soft);border-radius:7px;padding:6px 7px;min-width:38px}
+  .chcell .ci{font-family:var(--mono);font-size:9px;color:var(--faint)}
+  .chcell .cc{font-family:var(--mono);font-size:16px;color:var(--brass)}
+  .chcell .cn{font-family:var(--mono);font-size:9.5px;color:var(--dim)}
+  .lamprow{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:14px}
+  .lamp{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .lamp i{width:26px;height:26px;border-radius:99px;background:var(--plate3);border:1px solid var(--line);display:block}
+  .lamp.lit i{background:var(--brass);border-color:var(--brass);box-shadow:0 0 14px rgba(232,182,76,.45)}
+  .lamp span{font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+  .tblwrap{overflow-x:auto}
+  .tbl{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px}
+  .tbl th{text-align:left;font-weight:500;color:var(--faint);font-size:10px;letter-spacing:.12em;padding:0 8px 8px;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+  .tbl td{padding:7px 8px;color:var(--dim);border-bottom:1px solid var(--line-soft);white-space:nowrap}
+  .tbl tr:last-child td{border-bottom:0}
+  .beacon{width:54px;height:54px;border-radius:99px;margin:4px auto 12px;background:var(--plate3);border:1px solid var(--line);transition:background .08s,box-shadow .08s}
+  .beacon.flash{background:var(--brass);box-shadow:0 0 26px rgba(232,182,76,.6)}
+
+  /* ── tool deck ──────────────────────────── */
+  .deck{margin-top:16px;overflow:hidden}
+  .tabs{display:flex;gap:2px;padding:6px 6px 0;background:var(--plate2);border-bottom:1px solid var(--line-soft)}
+  .tab{font-family:var(--mono);font-size:11px;letter-spacing:.12em;background:transparent;border:0;color:var(--faint);padding:9px 14px;border-radius:8px 8px 0 0;cursor:pointer}
+  .tab:hover{color:var(--ink)}
+  .tab[aria-selected="true"]{background:var(--plate);color:var(--brass)}
+  .tab:focus-visible{outline:2px solid var(--brass);outline-offset:-2px}
+  .tabnote{margin-left:auto;align-self:center;font-family:var(--mono);font-size:10px;color:var(--faint);padding-right:8px;letter-spacing:.06em}
+  @media (max-width:560px){.tabnote{display:none}}
+  .pane{padding:14px 16px}
+  pre.code{margin:0;font-family:var(--mono);font-size:12.5px;line-height:1.65;color:var(--dim);overflow-x:auto;overflow-y:auto;max-height:430px}
+  pre.code .cm{color:var(--faint);font-style:italic}
+  pre.code .st{color:var(--mint)}
+  pre.code .kw{color:var(--rose)}
+  pre.code .nu{color:var(--sky)}
+  pre.code .tg{color:var(--sky)}
+  pre.code .at{color:var(--brass)}
+  pre.code .tx{color:var(--ink)}
+  .pane-hint{font-size:12.5px;color:var(--faint);margin:0 0 10px;font-family:var(--mono)}
+
+  #out{font-family:var(--mono);font-size:12.5px;line-height:1.6;height:186px;overflow-y:auto;background:var(--plate2);border:1px solid var(--line-soft);border-radius:9px;padding:10px 12px;white-space:pre-wrap;word-break:break-word}
+  #out .in{color:var(--dim)}
+  #out .in::before{content:"› ";color:var(--brass)}
+  #out .res{color:var(--ink)}
+  #out .res::before{content:"‹ ";color:var(--mint)}
+  #out .err{color:var(--rose)}
+  #out .err::before{content:"✕ "}
+  #out .log{color:var(--sky)}
+  #out .sys{color:var(--faint)}
+  .cmd{display:flex;gap:8px;margin-top:9px;align-items:stretch}
+  #cmd{flex:1;font-family:var(--mono);font-size:12.5px;background:var(--plate2);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:9px 11px;resize:vertical;min-height:46px;line-height:1.5}
+  #cmd:focus-visible{outline:2px solid var(--brass);outline-offset:1px}
+
+  /* ── hints + debrief ────────────────────── */
+  .aside{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+  @media (max-width:820px){.aside{grid-template-columns:1fr}}
+  .box{padding:16px 18px}
+  .box h3{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--faint);margin:0 0 12px;font-weight:500}
+  .hint-btns{display:flex;gap:6px;flex-wrap:wrap}
+  .hint-btn{font-family:var(--mono);font-size:11px;letter-spacing:.08em;background:var(--plate2);border:1px solid var(--line);color:var(--dim);border-radius:7px;padding:6px 11px;cursor:pointer}
+  .hint-btn:hover{color:var(--ink);border-color:var(--brass-dim)}
+  .hint-btn.used{color:var(--brass);border-color:var(--brass-dim)}
+  .hint-list{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+  .hint-list li{font-size:13.5px;color:var(--dim);padding-left:13px;border-left:2px solid var(--line)}
+  .hint-list code,.box code,.brief code{font-family:var(--mono);font-size:12px;background:var(--plate3);padding:1px 5px;border-radius:4px;color:var(--brass)}
+  .debrief p{margin:0 0 10px;font-size:13.5px;color:var(--dim)}
+  .debrief p:last-child{margin-bottom:0}
+  .debrief strong{color:var(--ink)}
+  footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line-soft);color:var(--faint);font-size:12.5px;font-family:var(--mono);display:flex;flex-wrap:wrap;gap:10px 18px;justify-content:space-between}
+  footer button{font-family:var(--mono);font-size:11px;background:none;border:0;color:var(--faint);cursor:pointer;text-decoration:underline}
+  footer button:hover{color:var(--rose)}
+  /* ── phone ──────────────────────────────── */
+  @media (max-width:820px){
+    /* 16px stops iOS zooming the whole page in when you tap a field */
+    .field,#cmd,#qin{font-size:16px}
+    #cmd{min-height:52px}
+    .shell{padding-block:14px 48px}
+    .top{padding-bottom:14px}
+    .score{margin-left:0;width:100%;justify-content:space-between}
+    .rail{-webkit-overflow-scrolling:touch;margin:0 -16px;padding:0 16px 6px;scroll-snap-type:x proximity}
+    .lv{scroll-snap-align:start;padding:10px 12px;min-height:42px;align-items:center}
+    .hint-btn{padding:9px 13px}
+    .replay{padding:7px 10px}
+    .brief{padding:16px 16px}
+    #stage{padding:16px}
+    .pane{padding:12px}
+    #out{height:150px}
+    .btn{padding:12px 16px}
+    .choice{padding:13px 14px}
+    .dtask{padding:13px}
+    .tab{padding:10px 12px}
+    .rcode{font-size:12px}
+    .rline{grid-template-columns:22px minmax(0,1fr);gap:7px}
+    .rgloss{margin-left:29px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div>
+      <h1 class="wordmark">Breakpoint <em>Arcade</em></h1>
+      <p class="tagline">Reading rounds, flashcards and exams, eight drills, then six machines to break. Everything is regenerated each time, and whatever you get wrong comes back sooner.</p>
+    </div>
+    <div class="score">
+      <div class="streak"><b id="streakN">0</b><span id="streakL">day streak</span></div>
+      <div class="todaybox"><div class="tdots" id="todayDots"></div><span class="score-n" id="todayN">0/3</span></div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <nav class="rail" id="rail" aria-label="Levels"></nav>
+
+    <main class="main">
+      <section class="panel brief">
+        <div class="brief-top" id="briefTop"></div>
+        <h2 class="lv-title" id="lvTitle"></h2>
+        <div id="lvBody"></div>
+        <div class="goal"><span>OBJECTIVE</span><p id="lvGoal"></p></div>
+      </section>
+
+      <section class="panel stage-wrap">
+        <div class="stage-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="t" id="stageName">MACHINE</span><button class="replay" id="replay">↻ NEW ROUND</button></div>
+        <div id="stage"></div>
+        <div class="tasks" id="tasks" hidden></div>
+        <div class="win" id="win" hidden><span class="k" id="winK">CRACKED · CODE</span><span class="v" id="winCode"></span></div>
+      </section>
+
+      <section class="panel deck" id="toolDeck">
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" id="tab-inspect" aria-selected="false">INSPECT</button>
+          <button class="tab" role="tab" id="tab-source" aria-selected="false">SOURCE</button>
+          <button class="tab" role="tab" id="tab-console" aria-selected="true">CONSOLE</button>
+          <span class="tabnote">this is your dev tools — the real thing is F12 in a browser</span>
+        </div>
+        <div class="pane" id="pane-inspect" hidden>
+          <p class="pane-hint">The machine's live HTML. Everything the page drew is in here — including what it drew invisibly.</p>
+          <pre class="code" id="dom"></pre>
+        </div>
+        <div class="pane" id="pane-source" hidden>
+          <p class="pane-hint">The code running this machine. Shipped to you, because it has to be.</p>
+          <pre class="code" id="src"></pre>
+        </div>
+        <div class="pane" id="pane-console">
+          <div id="out"></div>
+          <div class="cmd">
+            <textarea id="cmd" rows="1" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off" placeholder="type a command · Enter to run"></textarea>
+            <button class="btn" id="run">RUN</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="aside" id="asideRow">
+        <section class="panel box">
+          <h3>HINTS</h3>
+          <div class="hint-btns" id="hintBtns"></div>
+          <ul class="hint-list" id="hintList"></ul>
+        </section>
+        <section class="panel box debrief">
+          <h3>WHAT YOU JUST DID</h3>
+          <div id="debrief"></div>
+        </section>
+      </div>
+
+      <footer>
+        <span>Everything here runs in your browser. Nothing is sent anywhere.</span>
+        <button id="reset">reset all progress</button>
+      </footer>
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ───────── helpers ───────── */
+  var esc = function(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); };
+  var $ = function(id){ return document.getElementById(id); };
+  var timers = [];
+  var rafs = [];
+  function track(id){ timers.push(id); return id; }
+  function killTimers(){
+    timers.forEach(function(id){ clearInterval(id); clearTimeout(id); });
+    timers = [];
+    rafs.forEach(function(id){ cancelAnimationFrame(id); });
+    rafs = [];
+  }
+  function loop(fn){ var step = function(){ fn(); rafs.push(requestAnimationFrame(step)); }; rafs.push(requestAnimationFrame(step)); }
+
+  /* ───────── levels ───────── */
+  var HACKS = [
+  {
+    key:"stencil", n:"01", name:"The Stencil", machine:"SERVICE DOOR · BLOCK C", tool:"INSPECT", tab:"inspect",
+    body:[
+      "<p>A locked service door with a keypad. The access code used to be stencilled on the door itself, and the page still draws it — it just draws it in a way your eyes can't pick up.</p>",
+      "<p>A browser will happily render something to zero opacity, zero pixels, or off the side of the screen. It is still there in the HTML, and the HTML is yours.</p>"
+    ].join(""),
+    goal:"Find the access code hiding in the door's markup and type it into the keypad.",
+    hints:[
+      "Open the <b>INSPECT</b> tab. That is the door's live HTML — read it line by line.",
+      "One element carries <code>style=\"opacity:0\"</code>. Invisible is not the same as absent.",
+      "The code is <code>NX-4417</code>. Type it into the keypad and hit ENTER."
+    ],
+    debrief:[
+      "<p>You read the <strong>DOM</strong> — the live structure of the page — instead of the picture it painted. In a real browser that is right-click → Inspect, or F12.</p>",
+      "<p>This is not an exotic bug. Hidden form fields, pre-loaded coupon codes, unreleased features behind a CSS class, staff-only buttons set to <code>display:none</code> — all shipped to the visitor, all readable. <strong>If the browser received it, the user has it.</strong></p>"
+    ].join(""),
+    mount:function(stage, api){
+      stage.innerHTML =
+        '<div class="door">'+
+          '<div class="door-plate">'+
+            '<div class="door-label">SERVICE ENTRANCE · BLOCK C</div>'+
+            '<div class="door-stencil">ACCESS CODE <span class="worn" style="opacity:0">NX-4417</span></div>'+
+            '<p class="door-note">The stencil wore off years ago. Nobody on shift remembers the code.</p>'+
+          '</div>'+
+          '<div>'+
+            '<div class="row"><input id="l1in" class="field" placeholder="ACCESS CODE" autocomplete="off" spellcheck="false" autocapitalize="characters" autocorrect="off"><button class="btn" id="l1go">ENTER</button></div>'+
+            '<div class="status" id="l1st" style="margin-top:12px">LOCKED · 0 attempts</div>'+
+          '</div>'+
+        '</div>';
+      var tries = 0;
+      var st = $("l1st");
+      function go(){
+        var v = $("l1in").value.trim().toUpperCase();
+        tries++;
+        if (v === "NX-4417"){ st.className = "status good"; st.textContent = "OPEN"; api.solve("NX-4417"); }
+        else { st.className = "status bad"; st.textContent = "REJECTED · " + tries + " attempt" + (tries===1?"":"s"); }
+      }
+      $("l1go").addEventListener("click", go);
+      $("l1in").addEventListener("keydown", function(e){ if (e.key === "Enter") go(); });
+      return { scope:{}, source:[
+        "<!-- door.html -->",
+        '<div class="door-plate">',
+        '  <div class="door-label">SERVICE ENTRANCE · BLOCK C</div>',
+        '  <div class="door-stencil">ACCESS CODE <span class="worn" style="opacity:0">????</span></div>',
+        "</div>",
+        "",
+        "// The stencil element is rendered on every load.",
+        "// The SOURCE tab redacts it. The INSPECT tab does not —",
+        "// it reads the live page, and the live page has the real value."
+      ].join("\n") };
+    }
+  },
+
+  {
+    key:"gate", n:"02", name:"Dead Button", machine:"CARGO GATE · PATCH 3.2", tool:"CONSOLE", tab:"console",
+    body:[
+      "<p>The gate has one button, and security patch 3.2 disabled it. The button is gone as far as the interface is concerned.</p>",
+      "<p>But the button was never the gate. The button was a thing that <em>called</em> the gate. The gate object is still sitting in memory with all its doors and all its data, and the console can talk to it directly.</p>"
+    ].join(""),
+    goal:"Get the gate to open and read back its serial code, without touching the button.",
+    hints:[
+      "In the <b>CONSOLE</b> tab, type <code>gate</code> and press Enter. You'll see the object and its fields.",
+      "<code>gate.locked</code> is <code>true</code>. You can just assign a new value: <code>gate.locked = false</code>",
+      "Then run <code>gate.open()</code>. Or skip the ceremony entirely and read <code>gate.serial</code>."
+    ],
+    debrief:[
+      "<p>You ignored the interface and called the underlying object. A disabled button, a greyed-out menu, a hidden 'admin' panel — those are <strong>painted states</strong>, not locks. The logic behind them is running either way.</p>",
+      "<p>This is why real systems check permissions <strong>on the server</strong>, where you can't reach in and flip a flag. Anything checked only in the browser is a suggestion.</p>"
+    ].join(""),
+    mount:function(stage, api){
+      stage.innerHTML =
+        '<div class="row" style="gap:18px;align-items:flex-start">'+
+          '<div style="flex:1 1 220px">'+
+            '<button class="btn" id="l2btn" disabled>OPEN GATE</button>'+
+            '<div class="status" id="l2st" style="margin-top:12px">LOCKED · button disabled by patch 3.2</div>'+
+          '</div>'+
+          '<div style="flex:1 1 220px">'+
+            '<div class="row"><input id="l2in" class="field" placeholder="SERIAL CODE" autocomplete="off" spellcheck="false"><button class="btn ghost" id="l2go">SUBMIT</button></div>'+
+            '<div class="status" id="l2st2" style="margin-top:12px">awaiting serial</div>'+
+          '</div>'+
+        '</div>';
+      var gate = {
+        locked: true,
+        serial: "VOLT-2891",
+        open: function(){
+          if (this.locked) return "DENIED · gate is locked";
+          $("l2st").className = "status good";
+          $("l2st").textContent = "GATE OPEN";
+          api.solve(this.serial);
+          return "GATE OPEN · serial " + this.serial;
+        }
+      };
+      function sub(){
+        var v = $("l2in").value.trim().toUpperCase();
+        if (v === gate.serial){ api.solve(gate.serial); }
+        else { $("l2st2").className = "status bad"; $("l2st2").textContent = "WRONG SERIAL"; }
+      }
+      $("l2go").addEventListener("click", sub);
+      $("l2in").addEventListener("keydown", function(e){ if (e.key === "Enter") sub(); });
+      return { scope:{ gate:gate }, source:[
+        "// gate.js — security patch 3.2",
+        "",
+        "const gate = {",
+        "  locked: true,",
+        "  serial: /* redacted from this listing */,",
+        "",
+        "  open() {",
+        '    if (this.locked) return "DENIED · gate is locked";',
+        '    return "GATE OPEN · serial " + this.serial;',
+        "  }",
+        "};",
+        "",
+        "openButton.addEventListener(\"click\", () => gate.open());",
+        "openButton.disabled = true;   // patch 3.2 — pending audit",
+        "",
+        "// NOTE: `gate` is still a live object in this page.",
+        "// The console has it. Type `gate` and look."
+      ].join("\n") };
+    }
+  },
+
+  {
+    key:"clicker", n:"03", name:"Impossible Score", machine:"PRIZE MACHINE · CLAW CO.", tool:"CONSOLE", tab:"console",
+    body:[
+      "<p>One million points wins the prize. The button gives you one point. At three clicks a second that's about four and a half days of uninterrupted clicking.</p>",
+      "<p>The score is not a fact about the world. It's a number in a variable, and the variable is in your browser.</p>"
+    ].join(""),
+    goal:"Get the prize out of the machine without earning a million points.",
+    hints:[
+      "Type <code>game</code> in the console to see the machine's state. Watch which field changes when you click.",
+      "Assign straight over it: <code>game.score = 1000000</code> — then look at the stage.",
+      "Now trigger the payout: <code>game.claim()</code> (or press CLAIM PRIZE, which now passes its check)."
+    ],
+    debrief:[
+      "<p>You edited <strong>client-side state</strong>. Any score, timer, coin balance, unlocked-level flag or 'you have 3 free trials left' counter that lives in the browser can be written to.</p>",
+      "<p>The tell is <em>where the check happens</em>. <code>if (score >= target)</code> running in your tab is a check you control. The same line running on a server you can't touch is one you don't. Web games that take this seriously keep the score on the server and treat the browser as a screen, not a source of truth.</p>"
+    ].join(""),
+    mount:function(stage, api){
+      stage.innerHTML =
+        '<div class="sheet">'+
+          '<div class="cell"><span class="k">SCORE</span><span class="v big readout" id="l3sc">0</span></div>'+
+          '<div class="cell"><span class="k">TARGET</span><span class="v readout">1,000,000</span></div>'+
+          '<div class="cell"><span class="k">CLICKS</span><span class="v readout" id="l3cl">0</span></div>'+
+        '</div>'+
+        '<div class="bar"><i id="l3bar"></i></div>'+
+        '<div class="row"><button class="btn" id="l3click">+1 POINT</button><button class="btn ghost" id="l3claim">CLAIM PRIZE</button><span class="status" id="l3st">insert patience</span></div>';
+      var game = {
+        score: 0,
+        target: 1000000,
+        clicks: 0,
+        prize: "HELIX-6002",
+        claim: function(){
+          if (this.score < this.target) return "REFUSED · " + (this.target - this.score).toLocaleString() + " points short";
+          $("l3st").className = "status good";
+          $("l3st").textContent = "PRIZE DISPENSED";
+          api.solve(this.prize);
+          return "PRIZE DISPENSED · code " + this.prize;
+        }
+      };
+      var last = -1;
+      $("l3click").addEventListener("click", function(){ game.score++; game.clicks++; });
+      $("l3claim").addEventListener("click", function(){
+        var r = game.claim();
+        if (r.indexOf("REFUSED") === 0){ $("l3st").className = "status bad"; $("l3st").textContent = r; }
+      });
+      loop(function(){
+        if (game.score === last) return;
+        last = game.score;
+        $("l3sc").textContent = Number(game.score).toLocaleString();
+        $("l3cl").textContent = Number(game.clicks).toLocaleString();
+        $("l3bar").style.width = Math.max(0, Math.min(100, game.score / game.target * 100)) + "%";
+      });
+      return { scope:{ game:game }, source:[
+        "// prize-machine.js",
+        "",
+        "const game = {",
+        "  score: 0,",
+        "  target: 1000000,",
+        "  clicks: 0,",
+        "  prize: /* redacted from this listing */,",
+        "",
+        "  claim() {",
+        "    if (this.score < this.target) {",
+        '      return "REFUSED · " + (this.target - this.score) + " points short";',
+        "    }",
+        '    return "PRIZE DISPENSED · code " + this.prize;',
+        "  }",
+        "};",
+        "",
+        "plusButton.addEventListener(\"click\", () => { game.score++; game.clicks++; });",
+        "",
+        "// The check lives in this file. This file runs in your browser.",
+        "// Nothing here is verified anywhere else."
+      ].join("\n") };
+    }
+  },
+
+  {
+    key:"lock", n:"04", name:"The Combination", machine:"VAULT KEYPAD · MODEL 6", tool:"SOURCE + CONSOLE", tab:"source",
+    body:[
+      "<p>No hidden element, no flag to flip. This keypad genuinely checks the password you give it — and you can read exactly how it checks.</p>",
+      "<p>There is no stored password to steal. You have to <b>build</b> a string that satisfies every rule at once. Several strings work; you only need one.</p>"
+    ].join(""),
+    goal:"Read the checker in SOURCE, then construct any password it accepts.",
+    hints:[
+      "Three easy rules: 6 characters, starts <code>ZAP</code>, ends <code>!</code>. So it's <code>ZAP</code> + two unknowns + <code>!</code>. Only the checksum is left.",
+      "Each character adds <code>charCode × (position+1)</code>. <code>ZAP</code> and <code>!</code> already contribute 658, so your two mystery characters must add exactly 755 — that's <code>4×a + 5×b = 755</code>.",
+      "Let the machine do it. In the console:<br><code>for (let a=33;a&lt;127;a++) for (let b=33;b&lt;127;b++) { const p = \"ZAP\"+String.fromCharCode(a)+String.fromCharCode(b)+\"!\"; if (check(p)) log(p); }</code>"
+    ],
+    debrief:[
+      "<p>That's <strong>reverse engineering</strong>: you had the validator, so you worked backwards to an input that satisfies it, rather than guessing at a secret.</p>",
+      "<p>The second lesson is the brute force. 8,836 combinations is nothing for a computer and a lifetime for a person. Whenever a search space is small, the loop <em>is</em> the clever solution — and it's why short passwords and 4-digit PINs die instantly once an attacker can test guesses offline.</p>"
+    ].join(""),
+    mount:function(stage, api){
+      stage.innerHTML =
+        '<div class="row"><input id="l4in" class="field" placeholder="PASSWORD" autocomplete="off" spellcheck="false"><button class="btn" id="l4go">TEST</button></div>'+
+        '<div class="checks" id="l4ch"></div>';
+      function check(pw){
+        pw = String(pw);
+        if (pw.length !== 6) return false;
+        if (pw.slice(0,3) !== "ZAP") return false;
+        if (pw[5] !== "!") return false;
+        var sum = 0;
+        for (var i=0;i<6;i++) sum += pw.charCodeAt(i) * (i+1);
+        return sum === 1413;
+      }
+      function sumOf(pw){ var s=0; for (var i=0;i<pw.length && i<6;i++) s += pw.charCodeAt(i)*(i+1); return s; }
+      function render(){
+        var pw = $("l4in").value;
+        var rows = [
+          ["length is 6", pw.length === 6, pw.length + " chars"],
+          ["starts with ZAP", pw.slice(0,3) === "ZAP", pw.slice(0,3) || "—"],
+          ["ends with !", pw[5] === "!", pw[5] || "—"],
+          ["checksum is 1413", sumOf(pw) === 1413 && pw.length === 6, sumOf(pw)]
+        ];
+        $("l4ch").innerHTML = rows.map(function(r){
+          var cls = pw.length ? (r[1] ? "ok" : "no") : "";
+          return '<div class="'+cls+'">'+(pw.length ? (r[1]?"✓":"✕") : "·")+"  "+esc(r[0])+"   <span style='opacity:.7'>"+esc(r[2])+"</span></div>";
+        }).join("");
+        if (check(pw)) api.solve(pw);
+      }
+      $("l4in").addEventListener("input", render);
+      $("l4go").addEventListener("click", render);
+      render();
+      return { scope:{ check:check }, source:[
+        "// vault-keypad.js — model 6",
+        "",
+        "function check(pw) {",
+        "  if (pw.length !== 6)          return false;",
+        '  if (pw.slice(0, 3) !== "ZAP") return false;',
+        '  if (pw[5] !== "!")            return false;',
+        "",
+        "  let sum = 0;",
+        "  for (let i = 0; i < 6; i++) {",
+        "    sum += pw.charCodeAt(i) * (i + 1);",
+        "  }",
+        "  return sum === 1413;",
+        "}",
+        "",
+        "// charCodeAt(i) is the character's number:  A=65  a=97  0=48  !=33",
+        "// `check` is available in the console. Feed it guesses."
+      ].join("\n") };
+    }
+  },
+
+  {
+    key:"save", n:"05", name:"Save Scumming", machine:"THRONE OF ASH · SAVE SLOT 1", tool:"CONSOLE", tab:"source",
+    body:[
+      "<p>A game with a save string. Your character is a scullion with 12 gold, and the vault at the end of the game only opens for an <b>overlord</b> holding <b>999,999 gold or more</b>.</p>",
+      "<p>The save is base64 — that's encoding, not encryption; it scrambles nothing and anyone can reverse it. But the save also carries a <b>checksum</b>, and a save whose numbers don't match its checksum is rejected as corrupt. So you have to edit it <em>and</em> re-sign it.</p>"
+    ].join(""),
+    goal:"Forge a save file that loads clean, with rank overlord and at least 999,999 gold.",
+    hints:[
+      "Decode it first. In the console: <code>JSON.parse(atob(save))</code> — <code>save</code> is the current string.",
+      "Edit a copy, then re-sign it. The checksum covers <code>name|gold|rank</code> exactly, and <code>checksum</code> is available to you:<br><code>mem.s = JSON.parse(atob(save)); mem.s.gold = 999999; mem.s.rank = \"overlord\";</code>",
+      "Sign and repack, then paste the result into the save box and press LOAD:<br><code>mem.s.sig = checksum(mem.s.name + \"|\" + mem.s.gold + \"|\" + mem.s.rank); btoa(JSON.stringify(mem.s))</code>"
+    ],
+    debrief:[
+      "<p>You decoded a data format, changed it, and repaired its integrity check. That's the whole job of most save editors, cheat tables and config hacks — and it's the same skill as fixing a malformed CSV or a broken JSON export, which is the version of it you'll actually get paid for.</p>",
+      "<p>Note what the checksum did and didn't do. It catches <strong>accidental corruption</strong> perfectly. It stops a deliberate edit only if you can't see the algorithm — and you could. A signature you can recompute is not a signature. Real ones use a secret key you never ship to the player.</p>"
+    ].join(""),
+    mount:function(stage, api){
+      function checksum(s){ var h = 7; for (var i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) % 100003; return h; }
+      var start = { name:"zac", gold:12, rank:"scullion" };
+      start.sig = checksum(start.name + "|" + start.gold + "|" + start.rank);
+      var save = btoa(JSON.stringify(start));
+
+      stage.innerHTML =
+        '<div class="sheet">'+
+          '<div class="cell"><span class="k">NAME</span><span class="v" id="l5n">—</span></div>'+
+          '<div class="cell"><span class="k">GOLD</span><span class="v readout" id="l5g">—</span></div>'+
+          '<div class="cell"><span class="k">RANK</span><span class="v" id="l5r">—</span></div>'+
+        '</div>'+
+        '<label class="status" for="l5in" style="display:block;margin-bottom:6px">SAVE STRING</label>'+
+        '<textarea id="l5in" class="field" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>'+
+        '<div class="row" style="margin-top:10px"><button class="btn" id="l5go">LOAD SAVE</button><span class="status" id="l5st">slot 1 ready</span></div>';
+      $("l5in").value = save;
+
+      function load(str){
+        var data;
+        try { data = JSON.parse(atob(String(str).trim())); }
+        catch(e){ return "SAVE UNREADABLE · not valid base64 JSON"; }
+        if (checksum(data.name + "|" + data.gold + "|" + data.rank) !== data.sig) return "SAVE CORRUPT · checksum mismatch";
+        $("l5n").textContent = data.name;
+        $("l5g").textContent = Number(data.gold).toLocaleString();
+        $("l5r").textContent = data.rank;
+        if (data.rank === "overlord" && data.gold >= 999999){
+          api.solve("OBSIDIAN-77");
+          return "VAULT OPENED · code OBSIDIAN-77";
+        }
+        return "SAVE LOADED · the vault does not open for a " + data.rank;
+      }
+      function press(){
+        var r = load($("l5in").value);
+        var st = $("l5st");
+        st.className = "status " + (r.indexOf("VAULT OPENED") === 0 ? "good" : (r.indexOf("SAVE LOADED") === 0 ? "" : "bad"));
+        st.textContent = r;
+      }
+      $("l5go").addEventListener("click", press);
+      load(save);
+      return { scope:{ save:save, checksum:checksum, load:load }, source:[
+        "// throne-of-ash / savegame.js",
+        "",
+        "function checksum(s) {",
+        "  let h = 7;",
+        "  for (let i = 0; i < s.length; i++) {",
+        "    h = (h * 31 + s.charCodeAt(i)) % 100003;",
+        "  }",
+        "  return h;",
+        "}",
+        "",
+        "function load(str) {",
+        "  const data = JSON.parse(atob(str));          // base64 -> text -> object",
+        "",
+        '  const sig = checksum(data.name + "|" + data.gold + "|" + data.rank);',
+        '  if (sig !== data.sig) return "SAVE CORRUPT · checksum mismatch";',
+        "",
+        '  if (data.rank === "overlord" && data.gold >= 999999) {',
+        '    return "VAULT OPENED · code " + vaultCode;',
+        "  }",
+        '  return "SAVE LOADED · the vault does not open for a " + data.rank;',
+        "}",
+        "",
+        "// In the console you have:  save  ·  checksum(s)  ·  load(str)  ·  atob  ·  btoa",
+        "// Use mem.x = ... to keep a value between commands."
+      ].join("\n") };
+    }
+  },
+
+  {
+    key:"reflex", n:"06", name:"Too Fast For Hands", machine:"REFLEX TRIAL · 15 SECONDS", tool:"CONSOLE", tab:"console",
+    body:[
+      "<p>One tile lights up. Hit it, and it jumps somewhere else. You need <b>40 hits in 15 seconds</b> — that's 2.7 a second, sustained, and a wrong tile costs you one.</p>",
+      "<p>You are not going to do that by hand, and you're not supposed to. Write something that plays for you: the machine will tell you where the target is if you ask it.</p>"
+    ].join(""),
+    goal:"Score 40 hits in one round using a script instead of your hands.",
+    hints:[
+      "Try the pieces one at a time in the console: <code>bot.target()</code> gives the lit tile's index, <code>bot.hit(3)</code> hits tile 3.",
+      "So one perfect move is <code>bot.hit(bot.target())</code>. You need that on repeat — <code>setInterval(fn, ms)</code> runs a function every <code>ms</code> milliseconds.",
+      "Start the round, then let it rip:<br><code>bot.start(); setInterval(() =&gt; bot.hit(bot.target()), 30)</code><br>Stop it afterwards with <code>stopAll()</code>."
+    ],
+    debrief:[
+      "<p>You wrote a <strong>bot</strong> — a loop that reads state and acts on it faster than a person can. <code>setInterval(() => { ... }, 30)</code> is the entire idea, and it's the same shape as a scraper, a trading script, a test suite driving a UI, or an auto-clicker.</p>",
+      "<p>It also shows you why games and sites fight so hard over this: if the client reports its own actions, the client can report actions no human could take. Detection ends up being about <em>timing</em> — your bot was metronome-perfect, and nothing human is.</p>",
+      "<p><strong>That's all six.</strong> The reflexes you just built — read the DOM, call the object, edit the state, reverse the check, re-sign the data, automate the loop — are the ones you now take to real pages. Ask me for a fresh batch whenever you want harder ones.</p>"
+    ].join(""),
+    mount:function(stage, api){
+      stage.innerHTML =
+        '<div class="sheet">'+
+          '<div class="cell"><span class="k">HITS</span><span class="v big readout" id="l6h">0</span></div>'+
+          '<div class="cell"><span class="k">NEEDED</span><span class="v readout">40</span></div>'+
+          '<div class="cell"><span class="k">TIME LEFT</span><span class="v readout" id="l6t">15.0</span></div>'+
+        '</div>'+
+        '<div class="grid25" id="l6grid"></div>'+
+        '<div class="row"><button class="btn" id="l6go">START ROUND</button><span class="status" id="l6st">idle</span></div>';
+
+      var grid = $("l6grid"), tiles = [];
+      for (var i=0;i<25;i++){
+        var b = document.createElement("button");
+        b.className = "tile"; b.setAttribute("aria-label","tile "+i);
+        (function(idx){ b.addEventListener("click", function(){ bot.hit(idx); }); })(i);
+        grid.appendChild(b); tiles.push(b);
+      }
+      var lit = -1, hits = 0, running = false, endAt = 0;
+      function paint(){ tiles.forEach(function(t,i){ t.classList.toggle("hot", i === lit); }); }
+      function move(){ var n = lit; while (n === lit) n = Math.floor(Math.random()*25); lit = n; paint(); }
+
+      var bot = {
+        get hits(){ return hits; },
+        get running(){ return running; },
+        target: function(){ return running ? lit : -1; },
+        hit: function(i){
+          if (!running) return "round not running — call bot.start()";
+          if (i === lit){ hits++; move(); }
+          else if (hits > 0) hits--;
+          $("l6h").textContent = hits;
+          if (hits >= 40){ finish(true); return "TARGET MET"; }
+          return hits;
+        },
+        start: function(){
+          if (running) return "already running";
+          hits = 0; running = true; endAt = Date.now() + 15000;
+          $("l6h").textContent = "0";
+          $("l6st").className = "status"; $("l6st").textContent = "ROUND LIVE";
+          move();
+          track(setInterval(function(){ if (running) move(); }, 250));
+          return "round started — 15 seconds";
+        }
+      };
+      function finish(won){
+        running = false; lit = -1; paint();
+        var st = $("l6st");
+        if (won){ st.className = "status good"; st.textContent = "TRIAL PASSED"; api.solve("SIGMA-9051"); }
+        else { st.className = "status bad"; st.textContent = "TIME UP · " + hits + " hits"; }
+      }
+      $("l6go").addEventListener("click", function(){ bot.start(); });
+      loop(function(){
+        if (!running){ return; }
+        var left = Math.max(0, endAt - Date.now());
+        $("l6t").textContent = (left/1000).toFixed(1);
+        if (left === 0) finish(false);
+      });
+      return { scope:{ bot:bot }, source:[
+        "// reflex-trial.js",
+        "",
+        "const bot = {",
+        "  target() { return running ? lit : -1; },   // index of the lit tile, 0–24",
+        "",
+        "  hit(i) {",
+        "    if (i === lit) { hits++; move(); }       // correct tile: score, target jumps",
+        "    else if (hits > 0) { hits--; }           // wrong tile: lose one",
+        "    if (hits >= 40) finish(true);",
+        "  },",
+        "",
+        "  start() { ... }                            // begins a 15 second round",
+        "};",
+        "",
+        "// Console: bot.target()  ·  bot.hit(i)  ·  bot.start()  ·  bot.hits",
+        "//          setInterval(fn, ms)  ·  stopAll()"
+      ].join("\n") };
+    }
+  }];
+
+  /* ───────── card bank ───────── */
+  var VOCAB = [
+    { id:"v-variable", term:"variable",      def:"a name that holds a value" },
+    { id:"v-let",      term:"let",           def:"makes a name whose value you can change later" },
+    { id:"v-const",    term:"const",         def:"makes a name that can never be pointed at a different value" },
+    { id:"v-string",   term:"string",        def:"text — always written inside quotes" },
+    { id:"v-number",   term:"number",        def:"a plain numeric value, written with no quotes" },
+    { id:"v-boolean",  term:"boolean",       def:"a value that is either true or false, and nothing else" },
+    { id:"v-object",   term:"object",        def:"a labelled box of name: value pairs, written in curly braces" },
+    { id:"v-array",    term:"array",         def:"an ordered list, written in square brackets, counted from 0" },
+    { id:"v-property", term:"property",      def:"one named drawer inside an object, reached with a dot" },
+    { id:"v-function", term:"function",      def:"a stored action you can run by name" },
+    { id:"v-method",   term:"method",        def:"a function that lives on an object, like door.open()" },
+    { id:"v-call",     term:"calling",       def:"actually running a function — this is what the brackets mean" },
+    { id:"v-arg",      term:"argument",      def:"the value you hand a function when you run it" },
+    { id:"v-param",    term:"parameter",     def:"the name a function uses for whatever it was handed" },
+    { id:"v-return",   term:"return",        def:"hand a value back and stop the function immediately" },
+    { id:"v-if",       term:"if",            def:"run this block only when the condition is true" },
+    { id:"v-else",     term:"else",          def:"the block that runs when the condition turned out false" },
+    { id:"v-cond",     term:"condition",     def:"an expression that comes out as true or false" },
+    { id:"v-loop",     term:"loop",          def:"repeat a block of code while a condition still holds" },
+    { id:"v-index",    term:"index",         def:"a position in a list or string, starting at 0" },
+    { id:"v-length",   term:"length",        def:"how many items or characters something has" },
+    { id:"v-scope",    term:"scope",         def:"where a name exists and can be seen from" },
+    { id:"v-assign",   term:"assignment",    def:"putting the value on the right into the name on the left" },
+    { id:"v-compare",  term:"comparison",    def:"asking whether two things match, which gives back true or false" },
+    { id:"v-concat",   term:"concatenation", def:"gluing two pieces of text together end to end" },
+    { id:"v-comment",  term:"comment",       def:"a note for humans that the computer ignores completely" },
+    { id:"v-undef",    term:"undefined",     def:"what you get back when a name was never given a value" },
+    { id:"v-null",     term:"null",          def:"a value meaning deliberately empty, set on purpose" },
+    { id:"v-modulo",   term:"modulo",        def:"the remainder left over after dividing" },
+    { id:"v-incr",     term:"increment",     def:"adding one to a number, usually a loop counter" },
+    { id:"v-callback", term:"callback",      def:"a function handed to something else so it can be run later" },
+    { id:"v-dom",      term:"the DOM",       def:"the live structure of the page as the browser is holding it" },
+    { id:"v-console",  term:"the console",   def:"the place you type commands straight at a page that is already running" },
+    { id:"v-state",    term:"state",         def:"the values a program is holding right now, which change as it runs" },
+    { id:"v-base64",   term:"base64",        def:"an encoding that makes data safe to store as text — not encryption" },
+    { id:"v-checksum", term:"checksum",      def:"a number worked out from data, used to detect whether it changed" }
+  ];
+
+  var LINES = [
+    { id:"l-let",     code:'let count = 5;',                   mean:"make a name called count holding 5, which can change later" },
+    { id:"l-const",   code:'const door = { power: 0 };',       mean:"make a box called door with one drawer, power, holding 0" },
+    { id:"l-write",   code:'door.power = 50;',                 mean:"walk to the power drawer and overwrite it with 50" },
+    { id:"l-deep",    code:'door.sensors.motion',              mean:"go into sensors, then motion, and read what is there" },
+    { id:"l-if",      code:'if (count > 10) {',                mean:"only run the next block when count is bigger than 10" },
+    { id:"l-ret",     code:'return true;',                     mean:"hand back true and stop the function on the spot" },
+    { id:"l-retfalse",code:'if (tag.length !== 5) return false;', mean:"if the length is not exactly 5, hand back false and stop" },
+    { id:"l-for",     code:'for (let i = 0; i < 5; i++) {',    mean:"run the block five times, with i going 0, 1, 2, 3, 4" },
+    { id:"l-plus",    code:'sum += n;',                        mean:"add n onto sum, keeping what sum already had" },
+    { id:"l-incr",    code:'i++',                              mean:"add one to i" },
+    { id:"l-len",     code:'items.length',                     mean:"how many things are in the list" },
+    { id:"l-idx",     code:'items[0]',                         mean:"the first thing in the list" },
+    { id:"l-cat",     code:'"BAY-" + n',                       mean:"glue the text BAY- onto whatever n holds" },
+    { id:"l-eq",      code:'x === y',                          mean:"ask whether x and y are the same value and the same type" },
+    { id:"l-neq",     code:'x !== y',                          mean:"ask whether x and y are different" },
+    { id:"l-mod",     code:'sum % 7 === 0',                    mean:"ask whether sum divides by 7 with nothing left over" },
+    { id:"l-slice",   code:'name.slice(0, 3)',                 mean:"take the first three characters of name" },
+    { id:"l-charcode",code:'name.charCodeAt(0)',               mean:"the number code of the first character" },
+    { id:"l-filter",  code:'crates.filter(c => c.weight > 50)',mean:"keep only the crates whose weight is over 50" },
+    { id:"l-map",     code:'crates.map(c => c.id)',            mean:"turn each crate into just its id, giving a new list" },
+    { id:"l-timeout", code:'setTimeout(() => ping(), 1000)',   mean:"run ping once, a second from now" },
+    { id:"l-interval",code:'setInterval(() => ping(), 200)',   mean:"run ping five times a second, forever, until stopped" },
+    { id:"l-func",    code:'function fee(weight) {',           mean:"define a machine called fee that takes one value, called weight inside" },
+    { id:"l-decode",  code:'JSON.parse(atob(save))',           mean:"turn the base64 save text back into a real object" },
+    { id:"l-encode",  code:'btoa(JSON.stringify(save))',       mean:"turn the object into text, then into base64" },
+    { id:"l-comment", code:'// patch 3.2 — pending audit',     mean:"a note for whoever reads this; the computer skips it" },
+    { id:"l-disabled",code:'openButton.disabled = true;',      mean:"grey the button out on screen — the logic behind it still works" },
+    { id:"l-log",     code:'console.log(total)',               mean:"print the value of total into the console so you can see it" }
+  ];
+
+  /* ───────── what he keeps getting wrong ───────── */
+  var memory = {};
+  try { memory = JSON.parse(localStorage.getItem("bpa.memory") || "{}") || {}; } catch(e){ memory = {}; }
+  function memSave(){ try { localStorage.setItem("bpa.memory", JSON.stringify(memory)); } catch(e){} }
+  function note(id, ok){
+    var m = memory[id] || (memory[id] = { seen:0, wrong:0, streak:0 });
+    m.seen++;
+    if (ok){ m.streak++; if (m.streak >= 2 && m.wrong > 0) m.wrong--; }
+    else { m.wrong++; m.streak = 0; }
+    memSave();
+  }
+  function weightOf(id){ var m = memory[id]; if (!m) return 2; return 1 + m.wrong * 4 + (m.seen === 0 ? 1 : 0); }
+  function shaky(pool, n){
+    return pool.filter(function(c){ return memory[c.id] && memory[c.id].wrong > 0; })
+      .sort(function(a,b){ return memory[b.id].wrong - memory[a.id].wrong; })
+      .slice(0, n || 6);
+  }
+  function shuffle(a){
+    a = a.slice();
+    for (var i=a.length-1;i>0;i--){ var j = Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+    return a;
+  }
+  function drawWeighted(pool, n){
+    var left = pool.slice(), out = [];
+    while (out.length < n && left.length){
+      var total = left.reduce(function(s,c){ return s + weightOf(c.id); }, 0);
+      var r = Math.random() * total, k = 0;
+      for (var i=0;i<left.length;i++){ k += weightOf(left[i].id); if (r <= k){ out.push(left.splice(i,1)[0]); break; } }
+      if (out.length && out[out.length-1] === undefined) out.pop();
+    }
+    return out;
+  }
+
+  /* ───────── question builders ───────── */
+  function vocabQ(item, pool){
+    var others = shuffle(pool.filter(function(c){ return c.id !== item.id; })).slice(0,3);
+    if (Math.random() < 0.5){
+      var opts = shuffle([item.def].concat(others.map(function(o){ return o.def; })));
+      return { id:item.id, mono:false, prompt:'What does <code>'+esc(item.term)+'</code> mean?',
+               options:opts, answer:opts.indexOf(item.def),
+               explain:'<b>'+esc(item.term)+'</b> — '+esc(item.def)+'.' };
+    }
+    var opts2 = shuffle([item.term].concat(others.map(function(o){ return o.term; })));
+    return { id:item.id, mono:false, prompt:'Which one means: “'+esc(item.def)+'”?',
+             options:opts2.map(function(t){ return '<code>'+esc(t)+'</code>'; }),
+             answer:opts2.indexOf(item.term),
+             explain:'<b>'+esc(item.term)+'</b> — '+esc(item.def)+'.' };
+  }
+  function lineQ(item, pool){
+    var others = shuffle(pool.filter(function(c){ return c.id !== item.id; })).slice(0,3);
+    if (Math.random() < 0.55){
+      var opts = shuffle([item.mean].concat(others.map(function(o){ return o.mean; })));
+      return { id:item.id, mono:false, prompt:'What does this line do?<pre class="qcode">'+highlight(item.code)+'</pre>',
+               options:opts, answer:opts.indexOf(item.mean),
+               explain:'<code>'+esc(item.code)+'</code> — '+esc(item.mean)+'.' };
+    }
+    var opts2 = shuffle([item.code].concat(others.map(function(o){ return o.code; })));
+    return { id:item.id, mono:true, prompt:'Which line does this: “'+esc(item.mean)+'”?',
+             options:opts2.map(function(c){ return highlight(c); }), answer:opts2.indexOf(item.code),
+             explain:'<code>'+esc(item.code)+'</code> — '+esc(item.mean)+'.' };
+  }
+
+  /* ───────── exam level ───────── */
+  function examLevel(spec){
+    spec.group = "memory"; spec.tab = "console"; spec.tool = spec.tool || "EXAM";
+    spec.mount = function(stage, api){
+      var pool = spec.pool();
+      var picks = drawWeighted(pool, spec.count);
+      var qs = picks.map(function(item){ return (item.term ? vocabQ(item, VOCAB) : lineQ(item, LINES)); });
+      var qi = 0, right = 0, missed = [], answered = false;
+
+      stage.innerHTML = '<div class="exam" id="exam"></div>';
+      var el = $("exam");
+
+      function bar(){
+        var dots = qs.map(function(_, i){
+          var cls = i < qi ? (missed.indexOf(i) >= 0 ? "x" : "o") : (i === qi ? "now" : "");
+          return '<i class="edot '+cls+'"></i>';
+        }).join("");
+        return '<div class="ebar">'+dots+'<span class="escore">'+right+' / '+qs.length+'</span></div>';
+      }
+      function results(){
+        var pass = right >= spec.pass;
+        var list = missed.map(function(i){ return '<li>'+qs[i].explain+'</li>'; }).join("");
+        var weak = shaky(pool, 5);
+        el.innerHTML =
+          '<div class="qhead">EXAM COMPLETE</div>'+
+          '<div class="escore-big '+(pass?"pass":"fail")+'">'+right+' / '+qs.length+'</div>'+
+          '<p class="qtext">'+(pass
+            ? "Passed — that's "+spec.pass+" or better. Run it again in a day or two; the questions are redrawn every time."
+            : "Not a pass this round ("+spec.pass+" needed). Nothing lost — the ones you missed are below, and the next exam will lean on them.")+'</p>'+
+          (list ? '<div class="qhead">WHAT YOU MISSED</div><ul class="misslist">'+list+'</ul>' : '<p class="qtext" style="color:var(--mint)">Clean sweep. Nothing missed.</p>')+
+          (weak.length ? '<div class="qhead">STILL SHAKY · SHOWN MORE OFTEN</div><div class="shaky">'+weak.map(function(c){
+              return '<span class="stag">'+esc(c.term || c.code)+'</span>'; }).join("")+'</div>' : "")+
+          '<div class="row" style="margin-top:16px"><button class="btn" id="eagain">NEW EXAM · NEW QUESTIONS</button></div>';
+        $("eagain").addEventListener("click", function(){ show(current); });
+        if (pass) api.solve(spec.n + " · " + right + "/" + qs.length);
+      }
+      function render(){
+        if (qi >= qs.length){ results(); return; }
+        var q = qs[qi];
+        answered = false;
+        el.innerHTML = bar() +
+          '<div class="qhead">QUESTION '+(qi+1)+' OF '+qs.length+'</div>'+
+          '<div class="qtext">'+q.prompt+'</div>'+
+          '<div class="choices">'+q.options.map(function(o, i){
+            return '<button class="choice'+(q.mono?" mono":"")+'" data-i="'+i+'">'+o+'</button>';
+          }).join("")+'</div>'+
+          '<div class="qfb" id="qfb"></div>';
+        Array.prototype.forEach.call(el.querySelectorAll(".choice"), function(btn){
+          btn.addEventListener("click", function(){
+            if (answered) return;
+            answered = true;
+            var i = Number(btn.dataset.i), ok = (i === q.answer);
+            note(q.id, ok);
+            if (ok){ right++; btn.classList.add("right"); }
+            else {
+              missed.push(qi);
+              btn.classList.add("wrong");
+              el.querySelector('.choice[data-i="'+q.answer+'"]').classList.add("right");
+            }
+            var sc = el.querySelector(".escore"); if (sc) sc.textContent = right + " / " + qs.length;
+            var dot = el.querySelectorAll(".edot")[qi]; if (dot) dot.className = "edot " + (ok ? "o" : "x");
+            $("qfb").className = "qfb " + (ok ? "ok" : "no");
+            $("qfb").innerHTML = (ok ? "✓ " : "✕ ") + q.explain +
+              ' <button class="nextq" id="nextq">NEXT →</button>';
+            $("nextq").addEventListener("click", function(){ qi++; render(); });
+            $("nextq").focus();
+          });
+        });
+      }
+      render();
+      return { scope:{}, source:[
+        "// this exam is generated fresh every time you open it.",
+        "//",
+        "// questions are drawn from a weighted bank: anything you have",
+        "// answered wrong is far more likely to come back, and only drops",
+        "// out of the rotation after you get it right twice in a row.",
+        "//",
+        "// vocabulary cards: " + VOCAB.length,
+        "// line cards:       " + LINES.length
+      ].join("\n") };
+    };
+    return spec;
+  }
+
+  /* ───────── flashcards ───────── */
+  var MEM = [
+  {
+    key:"m1", n:"M1", group:"memory", name:"Flashcards", machine:"CARD DECK · SELF-MARKED", tool:"RECALL", tab:"console",
+    body:"<p>Twelve cards a sitting. Front is the term or the line; say the answer out loud <b>before</b> you flip it, then mark yourself honestly.</p><p>Anything you mark <b>not yet</b> comes back more often, here and in the exams, until you get it right twice running. Being honest with the button is the whole mechanism.</p>",
+    goal:"Work through twelve cards, marking each one honestly.",
+    hints:[
+      "Say it out loud before flipping. Recognising an answer and producing one are different skills, and only one of them is useful.",
+      "Mark <b>not yet</b> if you hesitated. A card you half-knew is exactly the card worth seeing again.",
+      "Run this for five minutes before an exam rather than reading the list over and over — testing yourself beats rereading by a mile."
+    ],
+    debrief:"<p>That's the whole trick to remembering this stuff: <strong>retrieve it, don't reread it</strong>. Pulling an answer out of your head is what fixes it there; looking at a list feels productive and does almost nothing.</p><p>A few minutes of cards before each session beats an hour of staring.</p>",
+    mount:function(stage, api){
+      var deck = drawWeighted(VOCAB.concat(LINES), 12);
+      var i = 0, flipped = false, done = 0;
+      stage.innerHTML = '<div class="cardstack" id="cardstack"></div>';
+      var el = $("cardstack");
+      function render(){
+        if (i >= deck.length){
+          var weak = shaky(VOCAB.concat(LINES), 6);
+          el.innerHTML =
+            '<div class="qhead">DECK FINISHED · '+done+' MARKED KNOWN</div>'+
+            (weak.length ? '<div class="qhead" style="margin-top:12px">COMING BACK SOONER</div><div class="shaky">'+
+              weak.map(function(c){ return '<span class="stag">'+esc(c.term || c.code)+'</span>'; }).join("")+'</div>'
+              : '<p class="qtext" style="color:var(--mint)">Nothing shaky on record. Take an exam.</p>')+
+            '<div class="row" style="margin-top:16px"><button class="btn" id="dagain">NEW DECK</button></div>';
+          $("dagain").addEventListener("click", function(){ show(current); });
+          api.solve("M1 · " + done + "/12 KNOWN");
+          return;
+        }
+        var c = deck[i];
+        var front = c.term ? '<div class="cface">'+esc(c.term)+'</div>' : '<pre class="cface mono">'+highlight(c.code)+'</pre>';
+        var back = c.term ? esc(c.def) : esc(c.mean);
+        el.innerHTML =
+          '<div class="qhead">CARD '+(i+1)+' OF '+deck.length+'</div>'+
+          '<div class="card'+(flipped?" flipped":"")+'" id="card">'+ front +
+            (flipped ? '<div class="cback">'+back+'</div>' : '<div class="chint">click to flip</div>')+
+          '</div>'+
+          (flipped
+            ? '<div class="row" style="margin-top:14px"><button class="btn" id="cgot">✓ GOT IT</button><button class="btn ghost" id="cnot">✕ NOT YET</button></div>'
+            : '<div class="status" style="margin-top:14px">say it out loud, then flip</div>');
+        $("card").addEventListener("click", function(){ if (!flipped){ flipped = true; render(); } });
+        if (flipped){
+          $("cgot").addEventListener("click", function(){ note(c.id, true); done++; i++; flipped = false; render(); });
+          $("cnot").addEventListener("click", function(){ note(c.id, false); i++; flipped = false; render(); });
+        }
+      }
+      render();
+      return { scope:{}, source:[
+        "// how the deck picks cards",
+        "//",
+        "// every card carries a record: { seen, wrong, streak }",
+        "// weight = 1 + wrong * 4",
+        "//",
+        "// a card you miss becomes five times more likely to reappear.",
+        "// two correct answers in a row take one wrong mark back off.",
+        "// that record is shared with the exams — and it lives only in",
+        "// this browser, so nothing is sent anywhere."
+      ].join("\n") };
+    }
+  },
+
+  examLevel({
+    key:"m2", n:"M2", name:"Vocabulary Exam", machine:"EXAM · TERMS", count:10, pass:8,
+    pool:function(){ return VOCAB; },
+    body:"<p>Ten questions on what the words actually mean, drawn fresh each time from "+"36"+" terms. Some ask for the meaning of a word, some give you the meaning and ask for the word — knowing it both ways is the difference between recognising jargon and using it.</p><p>Eight or better passes. Anything you miss gets weighted to come back.</p>",
+    goal:"Score 8 or more out of 10 on the vocabulary.",
+    hints:[
+      "If two options look close, ask which one you could actually act on. Definitions that are vague are usually the decoys.",
+      "For the reverse questions, read the definition and answer it in your head BEFORE looking at the four options.",
+      "Missing some is the point — the miss is what schedules the card to come back."
+    ],
+    debrief:"<p>Vocabulary is not pedantry here. Half of being stuck on a problem is not having the word for the thing you're stuck on, which means you can't search for it and you can't ask about it clearly.</p><p>Come back in a day or two rather than grinding it now — spacing the sittings out is what makes it stick.</p>"
+  }),
+
+  examLevel({
+    key:"m3", n:"M3", name:"Line Reading Exam", machine:"EXAM · LINES", count:10, pass:8, tool:"EXAM · CODE",
+    pool:function(){ return LINES; },
+    body:"<p>Ten real lines of code. Some ask what a line does; some give you the job and ask which line does it. This is the exam version of the reading track — no tracing, just instant recognition.</p><p>Eight or better passes.</p>",
+    goal:"Score 8 or more out of 10 translating lines of code.",
+    hints:[
+      "Read the line left to right and narrate it: what is being read, what is being changed, and what comes back.",
+      "An <code>=</code> with something on the left is always a write. Brackets after a name always mean run it.",
+      "If you're torn, look for the giveaway character: <code>%</code> is remainder, <code>+=</code> is add onto, <code>!==</code> is 'is not'."
+    ],
+    debrief:"<p>Recognising a line on sight is what frees up your attention for the shape of the whole file. While you're still decoding each character, there's nothing left over for the actual logic.</p><p>That's why this one is worth repeating until it's boring.</p>"
+  }),
+
+  examLevel({
+    key:"m4", n:"M4", name:"Mixed Final", machine:"EXAM · EVERYTHING", count:12, pass:10, tool:"EXAM · BOSS",
+    pool:function(){ return VOCAB.concat(LINES); },
+    body:"<p>Twelve questions from both banks, with your weak cards deliberately over-represented. Ten out of twelve to pass, so a couple of stray misses are survivable and a shaky patch is not.</p><p>If you can pass this cold, after a day away from the page, you can read basic code. That's not a participation trophy — it's the actual bar.</p>",
+    goal:"Score 10 or more out of 12, ideally on a day you haven't revised.",
+    hints:[
+      "Take it cold. Passing right after revising proves much less than passing a day later.",
+      "Anything you have missed before is more likely to appear here — treat a repeat sighting as a signal, not bad luck.",
+      "If you fail by one or two, read the missed list, run the flashcards once, and come back tomorrow rather than immediately."
+    ],
+    debrief:"<p>Passing this means the vocabulary and the line shapes are in place, which is the whole foundation the drills and the break-ins stand on.</p><p>Keep the habit: one deck of cards and one exam whenever you come back to the page. Five minutes, and it stops the whole thing leaking away.</p>"
+  })];
+
+  /* ───────── reading levels (regenerated every round) ───────── */
+  function ri(a, b){ return a + Math.floor(Math.random() * (b - a + 1)); }
+  function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function readerLevel(spec){
+    spec.group = "read";
+    spec.tool = spec.tool || "READ";
+    spec.tab = "console";
+    spec.mount = function(stage, api){
+      var R = spec.gen();
+      var qi = 0, finished = false, lineMode = false;
+      if (location.hash === "#selftest") window.__R = { questions: R.questions };
+
+      stage.innerHTML = '<div class="rcode" id="rcode"></div><div class="qcard" id="qcard"></div>';
+      var codeEl = $("rcode");
+      R.lines.forEach(function(ln, i){
+        var row = document.createElement("div");
+        row.className = "rline"; row.dataset.i = String(i);
+        row.innerHTML = '<span class="rn">'+(i+1)+'</span><pre class="rc">'+highlight(ln.code)+'</pre>';
+        row.addEventListener("click", function(){ if (lineMode) answerLine(i); });
+        codeEl.appendChild(row);
+        var g = document.createElement("div");
+        g.className = "rgloss"; g.hidden = true;
+        g.textContent = ln.gloss ? "↳ " + ln.gloss : "";
+        codeEl.appendChild(g);
+        ln.rowEl = row; ln.glossEl = g;
+      });
+
+      function showGlosses(){ R.lines.forEach(function(ln){ if (ln.gloss) ln.glossEl.hidden = false; }); }
+      function norm(v){
+        return String(v).trim().toLowerCase().replace(/^["']+|["']+$/g, "").replace(/\s+/g, " ").replace(/[.;]$/, "");
+      }
+      function feedback(ok, text){
+        var fb = $("qfb"); if (!fb) return;
+        fb.className = "qfb " + (ok ? "ok" : "no");
+        fb.innerHTML = (ok ? "✓ " : "✕ ") + text;
+      }
+      function next(){
+        qi++;
+        if (qi >= R.questions.length){
+          finished = true; lineMode = false; codeEl.classList.remove("pick");
+          showGlosses(); render();
+          api.solve(spec.n + " · " + spec.name.toUpperCase());
+        } else render();
+      }
+      function answerLine(i){
+        var q = R.questions[qi];
+        if (!q || q.type !== "line") return;
+        if (i === q.line){ feedback(true, q.explain); setTimeout(next, 900); }
+        else feedback(false, q.nudge || "Not that one — read what each line actually changes.");
+      }
+      function render(){
+        var card = $("qcard");
+        if (finished){
+          card.innerHTML =
+            '<div class="qhead">ALL '+R.questions.length+' ANSWERED · TRANSLATION UNLOCKED</div>'+
+            '<p class="qtext">Every line now carries its plain-English version. Read the pair together once — that mapping is the thing you are actually building.</p>'+
+            '<div class="row"><button class="btn" id="qagain">NEW ROUND · NEW NUMBERS</button><span class="status">the console below has this round\'s code loaded</span></div>';
+          $("qagain").addEventListener("click", function(){ show(current); });
+          return;
+        }
+        var q = R.questions[qi];
+        lineMode = (q.type === "line");
+        codeEl.classList.toggle("pick", lineMode);
+        var body = "";
+        if (q.type === "value") body = '<div class="row"><input id="qin" class="field" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="your answer"><button class="btn" id="qgo">CHECK</button></div>';
+        else if (q.type === "choice") body = '<div class="choices">' + q.options.map(function(o, i){ return '<button class="choice" data-i="'+i+'">'+o+'</button>'; }).join("") + '</div>';
+        else body = '<div class="status">click a line in the listing above</div>';
+
+        card.innerHTML =
+          '<div class="qhead">QUESTION '+(qi+1)+' OF '+R.questions.length+'</div>'+
+          '<p class="qtext">'+q.q+'</p>'+ body +'<div class="qfb" id="qfb"></div>';
+
+        if (q.type === "value"){
+          var go = function(){
+            var v = $("qin").value;
+            if (!v.trim()) return;
+            var accept = [q.answer].concat(q.also || []);
+            if (accept.some(function(a){ return norm(a) === norm(v); })){ feedback(true, q.explain); setTimeout(next, 1200); }
+            else feedback(false, q.nudge || "Not it — walk the lines from the top, one at a time.");
+          };
+          $("qgo").addEventListener("click", go);
+          $("qin").addEventListener("keydown", function(e){ if (e.key === "Enter") go(); });
+          setTimeout(function(){ var el = $("qin"); if (el) el.focus(); }, 30);
+        } else if (q.type === "choice"){
+          Array.prototype.forEach.call(card.querySelectorAll(".choice"), function(btn){
+            btn.addEventListener("click", function(){
+              var i = Number(btn.dataset.i);
+              if (i === q.answer){ btn.classList.add("right"); feedback(true, q.explain); setTimeout(next, 1200); }
+              else { btn.classList.add("wrong"); feedback(false, q.nudge || "Not that one."); }
+            });
+          });
+        }
+      }
+      render();
+      return { scope: R.scope || {}, source: R.lines.map(function(l){ return l.code; }).join("\n") };
+    };
+    return spec;
+  }
+
+  var READ = [
+  readerLevel({
+    key:"r1", n:"R1", name:"Top to Bottom",
+    machine:"LISTING · pallet-count.js",
+    body:"<p>Code runs one line at a time, top to bottom, and each line finishes before the next begins. That is the whole execution model, and most confusion comes from forgetting it.</p><p>Read the lines above and work out in your head what each name holds by the end. <b>The numbers change every round</b> — you can't memorise this one, you have to trace it.</p>",
+    goal:"Trace the listing by hand and say what each name ends up holding.",
+    hints:[
+      "Go line by line with a pen. Write each name down, and cross out the old value when a line overwrites it.",
+      "<code>/</code> is divide. <code>+</code> between two numbers adds, but <code>+</code> with any text glues instead.",
+      "The last line reads as: take what that name holds right now, do the sum, and put the result back in the same name."
+    ],
+    debrief:"<p>Two ideas carry most of your reading from here: <strong>lines run once, in order</strong>, and <strong>a name holds the value it was given, not a recipe that keeps updating</strong>.</p><p>When you're lost in a big file, this is the recovery move — pick one name, find every line that writes to it, read those in order.</p>",
+    gen:function(){
+      var per = pick([3,4,5,6]), mult = ri(3,9), crates = per*mult, sub = ri(2, crates-2);
+      var word = pick(["BAY","DOCK","LANE","PIER","HOLD"]);
+      var label = word+"-"+mult, left = crates - sub;
+      return {
+        lines:[
+          { code:"let crates = "+crates+";",              gloss:"make a name called crates, put "+crates+" in it" },
+          { code:"let perPallet = "+per+";",              gloss:"make perPallet, put "+per+" in it" },
+          { code:"let pallets = crates / perPallet;",     gloss:"divide "+crates+" by "+per+", put the answer ("+mult+") in pallets" },
+          { code:'let label = "'+word+'-" + pallets;',    gloss:'glue the text "'+word+'-" onto '+mult+', giving "'+label+'", and store it' },
+          { code:"crates = crates - "+sub+";",            gloss:"take the current crates ("+crates+"), subtract "+sub+", put "+left+" back into crates" }
+        ],
+        questions:[
+          { type:"value", q:"After line 3, what is in <code>pallets</code>?", answer:String(mult),
+            explain:crates+" divided by "+per+". Line 3 does the sum once and stores the answer.",
+            nudge:"Line 3 divides crates by perPallet, and both were set just above it." },
+          { type:"value", q:"What is in <code>label</code>?", answer:label, also:['"'+label+'"'],
+            explain:"A + between text and a number glues rather than adds — you get the text \""+label+"\".",
+            nudge:"Line 4 joins that text to whatever pallets held at that moment." },
+          { type:"value", q:"After the last line, what is in <code>crates</code>?", answer:String(left),
+            explain:"The line reads the old value ("+crates+"), subtracts "+sub+", and writes "+left+" back into the same name.",
+            nudge:"Read the right-hand side first, using the value crates had a moment ago." },
+          { type:"choice", q:"<code>crates</code> changed on the last line. Why is <code>label</code> still <code>\""+label+"\"</code>?",
+            options:[
+              "Because label was built on line 4, and that line already ran — values are snapshots, not live links",
+              "Because text can never be changed once it has been created",
+              "Because label only updates when something reads it"
+            ], answer:0,
+            explain:"This one catches everybody. Line 4 ran once, took the value that existed then, and kept it. Nothing re-runs by itself.",
+            nudge:"Think about WHEN line 4 ran, and whether anything would ever run it a second time." }
+        ],
+        scope:{ crates:left, perPallet:per, pallets:mult, label:label }
+      };
+    }
+  }),
+
+  readerLevel({
+    key:"r2", n:"R2", name:"Shapes and Paths",
+    machine:"LISTING · door-config.js",
+    body:"<p>Curly braces holding <code>name: value</code> pairs are an <b>object</b> — a labelled box. Objects nest inside objects, and the indentation is how you see what sits inside what.</p><p>Read the shape first, then the lines at the bottom that reach into it. Fresh values every round.</p>",
+    goal:"Read an object's shape, follow a path into it, and spot the line that changes it.",
+    hints:[
+      "Read the indentation as nesting — anything indented further is inside the thing above it.",
+      "A path on the LEFT of an <code>=</code> writes to it. A path on its own, or on the right, just reads.",
+      "<code>true</code> and <code>false</code> without quotes are yes/no values, not text."
+    ],
+    debrief:"<p>Nearly every file you open is mostly this: objects describing things, and lines walking paths into them to read or change a value.</p><p>Once you can look at <code>a.b.c = d</code> and say <em>\"go into a, into b, and put d in c\"</em>, you can read most code well enough to work out what it does.</p>",
+    gen:function(){
+      var id = "D-"+ri(10,99), heat = ri(14,31), power = pick([25,40,50,75,90]), locked = pick([true,false]);
+      var unit = pick(["door","hatch","gate","panel"]);
+      var L = [
+        { code:"const "+unit+" = {",              gloss:"start a box called "+unit },
+        { code:'  id: "'+id+'",',                 gloss:'a drawer called id, holding the text "'+id+'"' },
+        { code:"  power: 0,",                     gloss:"a drawer called power, holding 0" },
+        { code:"  locked: "+locked+",",           gloss:"a drawer called locked, holding "+locked },
+        { code:"  sensors: {",                    gloss:"a drawer called sensors, which is itself another box" },
+        { code:"    motion: false,",              gloss:"inside sensors: motion, holding false" },
+        { code:"    heat: "+heat,                 gloss:"inside sensors: heat, holding "+heat },
+        { code:"  }",                             gloss:"close the sensors box" },
+        { code:"};",                              gloss:"close the "+unit+" box" },
+        { code:"",                                gloss:"" },
+        { code:unit+".power = "+power+";",        gloss:"walk to the power drawer and overwrite it with "+power },
+        { code:unit+".sensors.motion = true;",    gloss:"walk into sensors, then motion, and overwrite it with true" }
+      ];
+      return {
+        lines:L,
+        questions:[
+          { type:"value", q:"What value would <code>"+unit+".sensors.heat</code> give you?", answer:String(heat),
+            explain:"Each dot is one step along the path: "+unit+" → sensors → heat.",
+            nudge:"Follow the dots one step at a time, using the indentation to see what is inside what." },
+          { type:"value", q:"After every line has run, what is in <code>"+unit+".locked</code>?", answer:String(locked),
+            explain:"Nothing below the object ever writes to locked, so it still holds what it was created with.",
+            nudge:"Look at the two lines at the bottom. Does either one mention locked?" },
+          { type:"line", q:"Click the line that switches the motion sensor on.", line:11,
+            explain:"A path on the left of an equals sign always means a write.",
+            nudge:"You want the line with motion on the left-hand side of an =." },
+          { type:"value", q:"And what is in <code>"+unit+".power</code> at the end?", answer:String(power),
+            explain:"It was created holding 0, then the line near the bottom overwrote it with "+power+". Last write wins.",
+            nudge:"It is set twice — once when the box is built, once at the bottom. Which one happens last?" }
+        ],
+        scope:(function(){ var o = {}; o[unit] = { id:id, power:power, locked:locked, sensors:{ motion:true, heat:heat } }; return o; })()
+      };
+    }
+  }),
+
+  readerLevel({
+    key:"r3", n:"R3", name:"Following the Branch",
+    machine:"LISTING · badge-check.js",
+    body:"<p>A function full of <code>if</code> statements is a corridor of gates. You walk in at the top, and the first gate whose condition is true throws you out with an answer — <code>return</code> ends the function immediately, on the spot.</p><p>Reading one means picking a specific input and walking it through, gate by gate. New thresholds each round.</p>",
+    goal:"Walk different badges through the same function and say where each one comes out.",
+    hints:[
+      "Pick one badge and physically point at each line in order. Don't try to read the whole thing at once.",
+      "<code>return</code> means: hand this value back AND stop the function immediately.",
+      "The last line has no if in front of it, so it only happens when nothing above it fired."
+    ],
+    debrief:"<p>This is the shape of every permission check, validator and lock you will ever meet: <strong>a stack of refusals, then one success at the bottom</strong>.</p><p>Reading one is always the same job — pick an input, walk the gates, see where it falls out. Picking a lock is that job backwards: find an input that reaches the bottom line.</p>",
+    gen:function(){
+      var min = ri(2,6), nameOK = pick(["Ana","Idris","Mei","Tomas","Ruth"]);
+      var okLevel = ri(min, min+4), badLevel = ri(0, min-1);
+      return {
+        lines:[
+          { code:"function enter(badge) {",                gloss:"a machine called enter, taking one thing in and calling it badge" },
+          { code:"  if (badge.level < "+min+") {",         gloss:"gate one: is this badge's level under "+min+"?" },
+          { code:'    return "DENIED";',                   gloss:'if so, hand back "DENIED" and stop the whole function here' },
+          { code:"  }",                                    gloss:"end of gate one" },
+          { code:"",                                       gloss:"" },
+          { code:"  if (badge.expired === true) {",        gloss:"gate two: is expired exactly true?" },
+          { code:'    return "DENIED · expired";',         gloss:"if so, hand back that text and stop" },
+          { code:"  }",                                    gloss:"end of gate two" },
+          { code:"",                                       gloss:"" },
+          { code:'  return "WELCOME, " + badge.name;',     gloss:"past both gates: glue the name onto WELCOME and hand it back" },
+          { code:"}",                                      gloss:"end of the machine" }
+        ],
+        questions:[
+          { type:"choice", q:"A badge with <code>level: "+okLevel+"</code>, <code>expired: false</code>, <code>name: \""+nameOK+"\"</code>. What comes back?",
+            options:[ '"DENIED"', '"DENIED · expired"', '"WELCOME, '+nameOK+'"' ], answer:2,
+            explain:okLevel+" is not under "+min+", and expired is not true, so both gates let it past and the last line runs.",
+            nudge:"Check each gate in turn. Is "+okLevel+" < "+min+"? Is false === true?" },
+          { type:"value", q:"A badge with <code>level: "+badLevel+"</code>, <code>expired: false</code>. What text comes back?", answer:"DENIED", also:['"DENIED"'],
+            explain:"Gate one is true, so the function hands back DENIED and stops — the rest never runs.",
+            nudge:"Start at the first if. Is "+badLevel+" under "+min+"?" },
+          { type:"choice", q:"For that level-"+badLevel+" badge, why does the expired check never even happen?",
+            options:[
+              "Because return ends the function right there — nothing after it runs",
+              "Because the two ifs cancel each other out",
+              "Because expired happened to be false"
+            ], answer:0,
+            explain:"return is a trapdoor, not a note. The moment it runs the function is over and everything below is skipped.",
+            nudge:"Look at what is on line 3, and ask what that word does to the rest of the function." },
+          { type:"line", q:"Click the only line that lets somebody in.", line:9,
+            explain:"The last line is the survivor's exit — you only reach it by failing to trigger every gate above.",
+            nudge:"Which return hands back something that isn't a refusal?" }
+        ],
+        scope:(function(){
+          function enter(badge){
+            if (badge.level < min) return "DENIED";
+            if (badge.expired === true) return "DENIED · expired";
+            return "WELCOME, " + badge.name;
+          }
+          return { enter:enter, badge:{ level:okLevel, expired:false, name:nameOK } };
+        })()
+      };
+    }
+  }),
+
+  readerLevel({
+    key:"r4", n:"R4", name:"Reading a Loop",
+    machine:"LISTING · manifest-total.js",
+    body:"<p>A loop is the one construct where the page won't tell you what happens — you have to run it in your head, pass by pass.</p><p>The trick is a table: one column per name that changes, one row per pass. Do that and loops stop being frightening. New list, new threshold, every round.</p>",
+    goal:"Run the loop in your head and come out with the right total.",
+    hints:[
+      "Draw two columns — i and total — and fill in one row per pass.",
+      "<code>weights[i]</code> means 'the item at position i'. Position 0 is the first item, so i=0 is the leftmost number.",
+      "<code>total = total + weights[i]</code> reads as: take the total so far, add this weight, store it back as the new total."
+    ],
+    debrief:"<p>Reading a loop is never a matter of staring harder. It's <strong>a table with one row per pass</strong>, and it works on loops far uglier than this one.</p><p>Two questions get you through almost any loop: how many passes, and what changes on each one.</p>",
+    gen:function(){
+      var n = pick([4,5]), thr = pick([3,4,5]), w, kept, all, tries = 0;
+      do {
+        w = []; for (var i=0;i<n;i++) w.push(ri(1,12));
+        kept = w.filter(function(x){ return x > thr; });
+        all = w.reduce(function(a,b){ return a+b; }, 0);
+        tries++;
+      } while ((kept.length === 0 || kept.length === n) && tries < 60);
+      var total = kept.reduce(function(a,b){ return a+b; }, 0);
+      return {
+        lines:[
+          { code:"let total = 0;",                             gloss:"start a running total at 0" },
+          { code:"const weights = ["+w.join(", ")+"];",        gloss:"a list of "+n+" numbers, at positions 0 to "+(n-1) },
+          { code:"",                                           gloss:"" },
+          { code:"for (let i = 0; i < weights.length; i++) {", gloss:"start i at 0; keep going while i is under "+n+"; add 1 to i after each pass" },
+          { code:"  if (weights[i] > "+thr+") {",              gloss:"look at the number at position i — is it bigger than "+thr+"?" },
+          { code:"    total = total + weights[i];",            gloss:"if so, add that number onto the running total" },
+          { code:"  }",                                        gloss:"end of the if" },
+          { code:"}",                                          gloss:"end of the loop — go back up and try the next i" }
+        ],
+        questions:[
+          { type:"value", q:"How many times does the loop body run?", answer:String(n),
+            explain:"i goes 0 up to "+(n-1)+" and stops before "+n+", because the list has "+n+" items and the test is 'under length'.",
+            nudge:"i starts at 0 and continues while i is UNDER the list's length." },
+          { type:"value", q:"What number is in <code>total</code> when the loop finishes?", answer:String(total),
+            explain:"Only "+kept.join(", ")+" get past the if, and they add up to "+total+".",
+            nudge:"Write out the passes. Which of those numbers are bigger than "+thr+"? Add only those." },
+          { type:"choice", q:"If the <code>if</code> line and its closing brace were deleted, what would total be?",
+            options: (total === all ? [String(all), String(total)+" — unchanged", "0"] : [String(total)+", the same", String(all), "0"]),
+            answer: (total === all ? 0 : 1),
+            explain:"Without the filter every number gets added: "+w.join(" + ")+" = "+all+".",
+            nudge:"With no condition, every number in the list gets added. Add all "+n+" of them." },
+          { type:"line", q:"Click the line that decides whether a weight counts.", line:4,
+            explain:"The if is the filter; the line under it is the action. Keeping those two jobs separate makes loops readable.",
+            nudge:"You want the line that asks a question, not the one that does the adding." }
+        ],
+        scope:{ weights:w, total:total }
+      };
+    }
+  }),
+
+  readerLevel({
+    key:"r5", n:"R5", name:"What Comes Back",
+    machine:"LISTING · shipping-fee.js",
+    body:"<p>When you read a function call, the only thing that matters at the call site is <b>what comes back</b>. The body is a detour you take once, to find out what that value is.</p><p>Read the body carefully, then walk each specific number through it. Watch the boundary question — it's the one that bites.</p>",
+    goal:"Work out what three different calls to the same function hand back, including the awkward one.",
+    hints:[
+      "Substitute the number in. Read the whole body with the word weight replaced by your actual number.",
+      "<code>*</code> is multiply, and it happens before <code>+</code>, exactly as in ordinary arithmetic.",
+      "For the last question, look at which set of braces the name is created inside."
+    ],
+    debrief:"<p>When you meet a call in a file you don't know, ask one question first: <strong>what value does this hand back?</strong> Often that's all you need, and you never read the body at all.</p><p>And when you do read it, substitute a real number as you go. Reading a function in the abstract is far harder than reading it with a value walking through.</p>",
+    gen:function(){
+      var base = pick([4,5,6,8]), thr = pick([20,50,80]), m = pick([2,3]);
+      var a = ri(2, thr-2), b = ri(thr+1, thr+30);
+      return {
+        lines:[
+          { code:"function fee(weight) {",                gloss:"a machine called fee; whatever you hand it is called weight inside" },
+          { code:"  const base = "+base+";",              gloss:"a name that exists only inside this function, holding "+base },
+          { code:"",                                      gloss:"" },
+          { code:"  if (weight > "+thr+") {",             gloss:"is the weight strictly greater than "+thr+"?" },
+          { code:"    return base + weight * "+m+";",     gloss:"if so: multiply the weight by "+m+", add "+base+", hand that back and stop" },
+          { code:"  }",                                   gloss:"end of the if" },
+          { code:"",                                      gloss:"" },
+          { code:"  return base + weight;",               gloss:"otherwise: add "+base+" to the weight and hand that back" },
+          { code:"}",                                     gloss:"end of the machine" },
+          { code:"",                                      gloss:"" },
+          { code:"const a = fee("+a+");",                 gloss:"run fee with "+a+", put whatever comes back into a" },
+          { code:"const b = fee("+b+");",                 gloss:"run fee with "+b+", put whatever comes back into b" }
+        ],
+        questions:[
+          { type:"value", q:"What number ends up in <code>a</code>?", answer:String(base + a),
+            explain:a+" is not over "+thr+", so the last line runs: "+base+" + "+a+".",
+            nudge:"Walk "+a+" through the body. Does it pass the if?" },
+          { type:"value", q:"What number ends up in <code>b</code>?", answer:String(base + b*m),
+            explain:b+" passes the if, so it's "+base+" + "+b+" × "+m+" = "+(base+b*m)+". The multiplication happens first.",
+            nudge:b+" IS over "+thr+", so the first return runs. Careful with the order of operations." },
+          { type:"value", q:"And <code>fee("+thr+")</code> — read the if line very carefully.", answer:String(base + thr),
+            explain:thr+" is not greater than "+thr+", so it takes the bottom route. That boundary is where a huge share of real bugs live.",
+            nudge:"The test is > "+thr+", not >= "+thr+". Is "+thr+" greater than "+thr+"?" },
+          { type:"choice", q:"What is <code>base</code> worth on the line <code>const a = fee("+a+");</code>?",
+            options:[
+              String(base)+", the same as inside",
+              "Nothing — base exists only inside the function, and is gone once it returns",
+              "Whatever it was last set to"
+            ], answer:1,
+            explain:"Names made inside a function are private to it and vanish when it ends. That's scope, and it's why two functions can both use a name like base without colliding.",
+            nudge:"Look at where base is created — inside the braces, or outside them?" }
+        ],
+        scope:(function(){
+          function fee(weight){ var bs = base; if (weight > thr) return bs + weight * m; return bs + weight; }
+          return { fee:fee };
+        })()
+      };
+    }
+  }),
+
+  readerLevel({
+    key:"r6", n:"R6", name:"Something Unfamiliar", tool:"READ · BOSS",
+    machine:"LISTING · tag-validator.js",
+    body:"<p>No preamble this time. This is a validator of the kind you'd actually hit in a real file — slightly odd, no comments to help you, and different every round.</p><p>Everything you need is in the five levels behind you: walk the gates, table the loop, work out what comes back.</p>",
+    goal:"Read an unfamiliar validator cold and say exactly what it accepts.",
+    hints:[
+      "Take it in two halves: the gate at the top, then everything that happens if you get past it.",
+      "<code>!==</code> means 'is not'. <code>sum % n</code> is the remainder after dividing by n — it is 0 only when n divides in exactly.",
+      "<code>checkTag</code> is loaded in the console. Answer first, then run it and see whether you were right."
+    ],
+    debrief:"<p>You just read a function cold and described it in a sentence. That is the whole skill — not memorising syntax, but turning a block of code into <strong>one clear sentence about what it accepts, returns or changes</strong>.</p><p>Run it again for a different validator, then take it into the drills — and when you reach the vault keypad in level 04, you'll find it's this same function wearing a hat.</p>",
+    gen:function(){
+      var len = pick([4,5,6]), mod = pick([5,6,7,9]);
+      var alpha = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+      var tag = ""; for (var i=0;i<len;i++) tag += alpha[ri(0, alpha.length-1)];
+      var codes = tag.split("").map(function(c){ return c.charCodeAt(0); });
+      var sum = codes.reduce(function(a,b){ return a+b; }, 0);
+      var result = (sum % mod === 0);
+      var shortTag = tag.slice(0, len - ri(1,2));
+      return {
+        lines:[
+          { code:"function checkTag(tag) {",                     gloss:"a machine called checkTag, taking one piece of text" },
+          { code:"  if (tag.length !== "+len+") return false;",  gloss:"if it is not exactly "+len+" characters long, hand back false and stop" },
+          { code:"",                                             gloss:"" },
+          { code:"  let sum = 0;",                               gloss:"start a running total at 0" },
+          { code:"  for (let i = 0; i < tag.length; i++) {",     gloss:"walk through the characters, position 0 to "+(len-1) },
+          { code:"    sum += tag.charCodeAt(i);",                gloss:"add this character's number code onto the running total" },
+          { code:"  }",                                          gloss:"end of the loop" },
+          { code:"",                                             gloss:"" },
+          { code:"  return sum % "+mod+" === 0;",                gloss:"hand back true only if that total divides by "+mod+" with nothing left over" },
+          { code:"}",                                            gloss:"end of the machine" }
+        ],
+        questions:[
+          { type:"choice", q:"What does <code>sum += tag.charCodeAt(i)</code> do on each pass?",
+            options:[
+              "Replaces sum with this character's number code",
+              "Adds this character's number code onto sum, keeping what was already there",
+              "Counts how many characters there are"
+            ], answer:1,
+            explain:"+= is shorthand for 'sum = sum + that'. You'll see it constantly — read it as 'add onto'.",
+            nudge:"The + in front of the = is doing the work. Compare it to total = total + x from the loop level." },
+          { type:"value", q:"What does <code>checkTag(\""+shortTag+"\")</code> hand back?", answer:"false",
+            explain:"That's "+shortTag.length+" characters, so the first gate fires immediately and the loop never runs at all.",
+            nudge:"Check the length gate first. How long is that one, and how long must it be?" },
+          { type:"value", q:"<code>checkTag(\""+tag+"\")</code>. The character codes are "+codes.join(", ")+" — so what comes back?",
+            answer:String(result),
+            explain:"They total "+sum+", and "+sum+" ÷ "+mod+" leaves a remainder of "+(sum % mod)+" — so the answer is "+result+".",
+            nudge:"Add the "+len+" codes, then find the remainder when you divide by "+mod+". Only a remainder of exactly 0 gives true." },
+          { type:"choice", q:"In one sentence, what does this function accept?",
+            options:[
+              "Any text made only of capital letters",
+              "Exactly "+len+" characters whose number codes add up to a multiple of "+mod,
+              "Any "+len+" characters, as long as none of them repeat"
+            ], answer:1,
+            explain:"That's the whole function in one line — and producing that sentence is exactly what reading code is for.",
+            nudge:"Combine the two gates: the length rule at the top, and the remainder rule at the bottom." }
+        ],
+        scope:(function(){
+          function checkTag(t){
+            if (t.length !== len) return false;
+            var s = 0; for (var i=0;i<t.length;i++) s += t.charCodeAt(i);
+            return s % mod === 0;
+          }
+          return { checkTag:checkTag };
+        })()
+      };
+    }
+  })];
+
+  var TRAIN = [
+  {
+    key:"d1", n:"A1", group:"train", name:"Values", machine:"CONSOLE · WARM-UP", tool:"CONSOLE", tab:"console",
+    body:"<p>Before anything else: the console is a place where you type a <b>value</b> and it hands the value back. That's the whole contract. <code>2 + 2</code> goes in, <code>4</code> comes out.</p><p>Two kinds of value do most of the work — <b>numbers</b>, and <b>strings</b> (text, always in quotes). And you can park a value under a name to use later. Work through the checklist below in the console.</p>",
+    goal:"Clear all four checks in the console. Type the command, press Enter, watch what comes back.",
+    tasks:[
+      { label:"Do some arithmetic — try <code>2 + 2</code>", test:function(c){ return typeof c.result === "number" && /[+\-*/]/.test(c.code); } },
+      { label:"Glue two bits of text together — <code>\"break\" + \"point\"</code>", test:function(c){ return typeof c.result === "string" && /\+/.test(c.code); } },
+      { label:"Park a value under a name — <code>mem.name = \"Zac\"</code>", test:function(c){ return c.scope.mem && typeof c.scope.mem.name === "string"; } },
+      { label:"Read it back — type <code>mem.name</code> on its own", test:function(c){ return /^mem\.[A-Za-z_$][\w$]*$/.test(c.code.trim()); } }
+    ],
+    hints:[
+      "Type it exactly, press Enter. The <code>‹</code> line is what came back.",
+      "Quotes are what make something text. <code>2 + 2</code> is 4; <code>\"2\" + \"2\"</code> is <code>\"22\"</code> — try both.",
+      "<code>mem</code> is a storage box that survives between commands. <code>mem.name = \"Zac\"</code> puts a value in it; <code>mem.name</code> takes a look."
+    ],
+    debrief:"<p>You've got the loop that everything else runs on: <strong>an expression goes in, a value comes out.</strong></p><p>The one thing worth burning in: <code>=</code> is not 'equals'. It's <strong>put this value into that name</strong>, right to left. Comparing comes later and uses <code>===</code>.</p>",
+    mount:function(stage, api){
+      stage.innerHTML =
+        '<div class="sheet"><div class="cell"><span class="k">LAST VALUE</span><span class="v" id="d1v">—</span></div>'+
+        '<div class="cell"><span class="k">TYPE</span><span class="v" id="d1t">—</span></div></div>'+
+        '<div class="cell"><span class="k">MEM · YOUR STORAGE BOX</span><pre class="mini" id="d1m">{ }</pre></div>';
+      return { scope:{}, onRun:function(r){
+        $("d1v").textContent = (typeof r === "string") ? '"'+r+'"' : String(r);
+        $("d1t").textContent = r === null ? "null" : typeof r;
+        $("d1m").textContent = fmt(mem);
+      }, source:[
+        "// the four moves in this drill",
+        "",
+        "2 + 2                 // a number expression  ->  4",
+        '"break" + "point"     // joining text         ->  "breakpoint"',
+        "",
+        'mem.name = "Zac"      // = means PUT INTO. right side goes into the left.',
+        "mem.name              // just the name on its own = show me what is in it",
+        "",
+        "// quotes decide everything:",
+        '2 + 2      ->  4',
+        '"2" + "2"  ->  "22"      // text glued, not added'
+      ].join("\n") };
+    }
+  },
+
+  {
+    key:"d2", n:"A2", group:"train", name:"Objects and Dots", machine:"MAINTENANCE BOT KR-9", tool:"CONSOLE", tab:"console",
+    body:"<p>An <b>object</b> is a labelled box of values. <code>robot</code> holds a name, a charge level, whether it's online, and another box inside it for its arm.</p><p>The dot is how you walk into it. <code>robot.charge</code> means 'the charge drawer of the robot box'. The same dot works for reading and for writing — and everything you change shows up on the machine above, live.</p>",
+    goal:"Read three values out of the robot, then change two of them and watch the panel react.",
+    tasks:[
+      { label:"See the whole object — type <code>robot</code>", test:function(c){ return /^robot$/.test(c.code.trim()); } },
+      { label:"Read one drawer — <code>robot.charge</code>", test:function(c){ return /^robot\.charge$/.test(c.code.trim()); } },
+      { label:"Go one level deeper — <code>robot.arm.holding</code>", test:function(c){ return /robot\.arm\.holding/.test(c.code); } },
+      { label:"Write to it — put charge at 100", test:function(c){ return c.scope.robot.charge >= 100; } },
+      { label:"Switch it on — <code>robot.online = true</code>", test:function(c){ return c.scope.robot.online === true; } }
+    ],
+    hints:[
+      "Reading: <code>robot.charge</code>. Writing: <code>robot.charge = 100</code>. Same dot, the <code>=</code> is the difference.",
+      "Nested boxes chain: <code>robot.arm</code> is itself an object, so <code>robot.arm.holding</code> goes one drawer further in.",
+      "<code>true</code> and <code>false</code> are values in their own right — no quotes. <code>\"true\"</code> with quotes is just text and won't flip the lamp."
+    ],
+    debrief:"<p>Dot notation is the single most useful thing in this whole arcade. Every hack level is some version of <code>thing.property</code> — reading state you weren't meant to see, or writing state you weren't meant to set.</p><p>Notice there was no <em>permission</em> involved. An object in your browser is yours. That fact is level 02 and level 03 in one sentence.</p>",
+    mount:function(stage, api){
+      var robot = { name:pick(["KR-9","TX-2","MULE-7","BRIK-4"]), charge:ri(5,40), online:false, arm:{ holding:pick(["a rusted bolt","a cracked lens","half a sandwich","nothing at all"]), grip:pick(["weak","firm","slipping"]) } };
+      stage.innerHTML =
+        '<div class="sheet"><div class="cell"><span class="k">UNIT</span><span class="v" id="d2n">—</span></div>'+
+        '<div class="cell"><span class="k">CHARGE</span><span class="v big readout" id="d2c">—</span></div>'+
+        '<div class="cell"><span class="k">POWER</span><span class="v" id="d2o">—</span></div></div>'+
+        '<div class="bar"><i id="d2b"></i></div>'+
+        '<div class="status" id="d2h">arm: —</div>';
+      loop(function(){
+        $("d2n").textContent = robot.name;
+        $("d2c").textContent = robot.charge;
+        $("d2o").textContent = robot.online ? "ONLINE" : "OFFLINE";
+        $("d2o").style.color = robot.online ? "var(--mint)" : "var(--rose)";
+        $("d2b").style.width = Math.max(0, Math.min(100, Number(robot.charge))) + "%";
+        $("d2h").textContent = "arm holding: " + robot.arm.holding + " · grip " + robot.arm.grip;
+      });
+      return { scope:{ robot:robot }, source:[
+        "// the shape of the object sitting in memory",
+        "",
+        "const robot = {",
+        '  name: "KR-9",',
+        "  charge: 14,",
+        "  online: false,",
+        "  arm: {                    // an object inside an object",
+        '    holding: "a rusted bolt",',
+        '    grip: "weak"',
+        "  }",
+        "};",
+        "",
+        "robot.charge         // READ  -> 14",
+        "robot.charge = 100   // WRITE -> the panel above updates",
+        "robot.arm.holding    // chain dots to go deeper"
+      ].join("\n") };
+    }
+  },
+
+  {
+    key:"d3", n:"A3", group:"train", name:"Functions", machine:"VENDING UNIT · ROW A", tool:"CONSOLE", tab:"console",
+    body:"<p>A <b>function</b> is a stored action. It takes something in the brackets, does work, and <b>returns</b> a value — the value you get back is the whole point.</p><p><code>double(21)</code> runs it. <code>double</code> without the brackets doesn't run anything; it just shows you the machine itself. That difference trips up everyone once, so trip over it here.</p>",
+    goal:"Run a function, look at one without running it, and feed one function's answer into another.",
+    tasks:[
+      { label:"Run it — <code>double(21)</code>", test:function(c){ return /double\s*\(/.test(c.code) && typeof c.result === "number"; } },
+      { label:"Now type <code>double</code> with no brackets. Read what comes back.", test:function(c){ return /^double$/.test(c.code.trim()); } },
+      { label:"Call a function that lives on an object — <code>vending.press(\"A3\")</code>", test:function(c){ return /vending\.press\s*\(/.test(c.code) && typeof c.result === "string"; } },
+      { label:"Nest them — <code>double(double(5))</code>", test:function(c){ return /double\s*\(\s*double\s*\(/.test(c.code); } }
+    ],
+    hints:[
+      "Brackets mean RUN. <code>double(21)</code> runs. <code>double</code> alone just shows <code>ƒ double()</code> — the recipe, not the meal.",
+      "The thing in the brackets is the <b>argument</b> — what you hand the function to work on. <code>vending.press(\"A3\")</code> hands it the slot code.",
+      "Nesting reads inside-out: <code>double(double(5))</code> runs the inner one first (10), then the outer one on that answer (20)."
+    ],
+    debrief:"<p>Functions are the verbs. <code>gate.open()</code>, <code>game.claim()</code>, <code>bot.hit(3)</code> — every one of those in the hack levels is this same shape: <strong>a stored action you can call yourself</strong>, whether or not the interface offers you a button for it.</p>",
+    mount:function(stage, api){
+      function double(n){ return n * 2; }
+      var stock = { A1:"stale crisps", A2:"warm cola", A3:"a keycard, apparently", A4:"nothing" };
+      var vending = {
+        lastDispensed:"—",
+        press:function(code){
+          var item = stock[code];
+          if (!item) return "NO SUCH SLOT · " + code;
+          this.lastDispensed = item;
+          return "DISPENSED · " + item;
+        }
+      };
+      stage.innerHTML =
+        '<div class="sheet"><div class="cell"><span class="k">SLOTS</span><span class="v" style="font-size:13px">A1 A2 A3 A4</span></div>'+
+        '<div class="cell"><span class="k">LAST DISPENSED</span><span class="v" id="d3l" style="font-size:14px">—</span></div></div>'+
+        '<div class="status">the buttons on this machine are decorative. use the console.</div>';
+      loop(function(){ $("d3l").textContent = vending.lastDispensed; });
+      return { scope:{ double:double, vending:vending }, source:[
+        "// a function on its own",
+        "function double(n) {",
+        "  return n * 2;        // return = the value that comes back out",
+        "}",
+        "",
+        "// a function living on an object",
+        "const vending = {",
+        "  press(code) {",
+        "    const item = stock[code];",
+        '    if (!item) return "NO SUCH SLOT · " + code;',
+        '    return "DISPENSED · " + item;',
+        "  }",
+        "};",
+        "",
+        "double(21)      // RUN it        -> 42",
+        "double          // LOOK at it    -> ƒ double()",
+        'vending.press("A3")'
+      ].join("\n") };
+    }
+  },
+
+  {
+    key:"d4", n:"A4", group:"train", name:"True or False", machine:"BLAST DOOR · INTERLOCK", tool:"CONSOLE", tab:"console",
+    body:"<p>Comparisons produce a third kind of value: <b>true</b> or <b>false</b>. And <code>if</code> is the one instruction that acts on them — do this thing, but only if that's true.</p><p>Every lock you will ever pick is an <code>if</code>. Learn to read one and you can see exactly what it demands.</p>",
+    goal:"Make some comparisons, meet the === trap, then write an if statement that actually fires.",
+    tasks:[
+      { label:"Compare two numbers — <code>5 &gt; 3</code>", test:function(c){ return typeof c.result === "boolean" && /[<>]/.test(c.code); } },
+      { label:"Run <code>\"5\" === 5</code> — three equals, and it's <b>false</b>", test:function(c){ return /===/.test(c.code) && c.result === false; } },
+      { label:"Run <code>\"5\" == 5</code> — two equals, and it's <b>true</b>", test:function(c){ return /[^=!<>]==[^=]/.test(c.code) && c.result === true; } },
+      { label:"Give the door power — <code>door.power = 50</code>", test:function(c){ return c.scope.door.power > 0; } },
+      { label:"Open it with an if — <code>if (door.power &gt; 0) { door.open() }</code>", test:function(c){ return c.scope.door.isOpen === true && /\bif\s*\(/.test(c.code); } }
+    ],
+    hints:[
+      "<code>&gt;</code> <code>&lt;</code> <code>&gt;=</code> <code>&lt;=</code> <code>===</code> <code>!==</code> all hand back true or false. Try a few on their own first.",
+      "<code>===</code> checks value AND type, so text \"5\" is not the number 5. <code>==</code> quietly converts one to match the other. Always write <code>===</code>; the sloppy one causes real bugs.",
+      "Try the if BEFORE giving it power — nothing happens, because the condition is false. Then <code>door.power = 50</code> and run the same line again."
+    ],
+    debrief:"<p>You just wrote the exact shape that every one of the break-in levels is built from:</p><p><code>if (some condition) { do the good thing }</code></p><p>Which means there are only ever two ways through a lock — <strong>satisfy the condition, or change what it's reading.</strong> Level 03 changes what it reads. Level 04 satisfies the condition. That's the entire art.</p>",
+    mount:function(stage, api){
+      var door = {
+        power:0, isOpen:false,
+        open:function(){
+          if (this.power <= 0) return "no power · nothing happens";
+          this.isOpen = true;
+          return "BLAST DOOR OPEN";
+        }
+      };
+      stage.innerHTML =
+        '<div class="sheet"><div class="cell"><span class="k">POWER</span><span class="v big readout" id="d4p">0</span></div>'+
+        '<div class="cell"><span class="k">DOOR</span><span class="v" id="d4d">SEALED</span></div></div>'+
+        '<div class="status">interlock: the door only responds while it has power.</div>';
+      loop(function(){
+        $("d4p").textContent = door.power;
+        $("d4d").textContent = door.isOpen ? "OPEN" : "SEALED";
+        $("d4d").style.color = door.isOpen ? "var(--mint)" : "var(--rose)";
+      });
+      return { scope:{ door:door }, source:[
+        "// comparisons hand back true / false",
+        "5 > 3        // true",
+        '"5" === 5    // false  — different types, === cares',
+        '"5" == 5     // true   — == converts first. avoid it.',
+        "",
+        "// the door's own logic",
+        "const door = {",
+        "  power: 0,",
+        "  open() {",
+        '    if (this.power <= 0) return "no power · nothing happens";',
+        "    this.isOpen = true;",
+        "  }",
+        "};",
+        "",
+        "// an if statement you write yourself:",
+        "if (door.power > 0) { door.open() }"
+      ].join("\n") };
+    }
+  },
+
+  {
+    key:"d5", n:"A5", group:"train", name:"Inside a String", machine:"LABEL PRINTER · STOCK", tool:"CONSOLE", tab:"console",
+    body:"<p>Text isn't one lump. A string is a row of characters, each at a numbered <b>position starting from zero</b> — the panel above shows the row, the positions, and the number code behind every character.</p><p>You need this one for the vault keypad later, where the password is checked character by character.</p>",
+    goal:"Measure the label, pull characters and slices out of it, and read a character's number.",
+    tasks:[
+      { label:"Length — <code>label.length</code>", test:function(c){ return /\.length/.test(c.code) && typeof c.result === "number"; } },
+      { label:"The first character — <code>label[0]</code>", test:function(c){ return /label\s*\[\s*\d+\s*\]/.test(c.code); } },
+      { label:"A piece of it — <code>label.slice(0, 5)</code>", test:function(c){ return /\.slice\s*\(/.test(c.code) && typeof c.result === "string"; } },
+      { label:"Its number code — <code>label.charCodeAt(0)</code>", test:function(c){ return /charCodeAt/.test(c.code) && typeof c.result === "number"; } },
+      { label:"Build a new string from a piece — e.g. <code>label.slice(0,5) + \"!\"</code>", test:function(c){ return typeof c.result === "string" && /\+/.test(c.code) && /slice|\[/.test(c.code); } }
+    ],
+    hints:[
+      "Positions start at 0, so <code>label[0]</code> is the first character and <code>label[label.length - 1]</code> is the last.",
+      "<code>slice(0, 5)</code> takes from position 0 up to <b>but not including</b> 5 — five characters. That off-by-one is deliberate and universal.",
+      "<code>charCodeAt(i)</code> gives the number a character is stored as: A is 65, a is 97, 0 is 48, ! is 33. Checksums are built out of these."
+    ],
+    debrief:"<p>Every string is an indexed row, and the index starts at zero. That single fact explains <code>pw[5]</code>, <code>pw.slice(0,3)</code> and <code>charCodeAt(i)</code> in the vault keypad — go and read that level's source now and it should read like English.</p>",
+    mount:function(stage, api){
+      var label = pick(["BREAKPOINT-9","COLDSTORE-4","MANIFOLD-7","DRYDOCK-21"]);
+      var cells = label.split("").map(function(ch, i){
+        return '<div class="chcell"><span class="ci">'+i+'</span><span class="cc">'+esc(ch)+'</span><span class="cn">'+ch.charCodeAt(0)+'</span></div>';
+      }).join("");
+      stage.innerHTML =
+        '<div class="status" style="margin-bottom:10px">label = "'+label+'"  ·  position / character / charCode</div>'+
+        '<div class="chrow">'+cells+'</div>';
+      return { scope:{ label:label }, source:[
+        'const label = "BREAKPOINT-9";',
+        "",
+        "label.length          // 12  — how many characters",
+        'label[0]              // "B" — positions start at ZERO',
+        'label[label.length-1] // "9" — the last one',
+        'label.slice(0, 5)     // "BREAK" — from 0, up to but NOT including 5',
+        "label.charCodeAt(0)   // 66 — the number B is stored as",
+        "",
+        "// useful numbers:  A=65  Z=90  a=97  0=48  !=33  space=32"
+      ].join("\n") };
+    }
+  },
+
+  {
+    key:"d6", n:"A6", group:"train", name:"Repeating Yourself", machine:"LAMP BANK · 12 CHANNELS", tool:"CONSOLE", tab:"console",
+    body:"<p>A <b>loop</b> does the same thing many times with a counter that changes each pass. <code>for (let i = 0; i &lt; 12; i++)</code> reads as: start i at 0, keep going while i is under 12, add one each time.</p><p>Twelve lamps, twelve commands — or one loop. This is the move that turns 8,836 password guesses into a two-second job.</p>",
+    goal:"Light one lamp by hand, then all twelve with a loop, then only the even-numbered ones.",
+    tasks:[
+      { label:"By hand — <code>lamps.on(0)</code>", test:function(c){ return /lamps\.on\s*\(/.test(c.code); } },
+      { label:"All twelve with one loop", test:function(c){ return c.scope.lamps.state.every(Boolean); } },
+      { label:"<code>lamps.reset()</code>, then light only the even ones (0, 2, 4 …) using <code>if (i % 2 === 0)</code>", test:function(c){ var s = c.scope.lamps.state; return s.every(function(on, i){ return on === (i % 2 === 0); }); } }
+    ],
+    hints:[
+      "The full line: <code>for (let i = 0; i &lt; 12; i++) lamps.on(i)</code> — <code>i</code> is just a name for the counter, and it lands in the brackets.",
+      "<code>%</code> is the remainder after dividing. <code>4 % 2</code> is 0, <code>5 % 2</code> is 1 — so <code>i % 2 === 0</code> is the test for 'even'.",
+      "Put the condition inside the loop:<br><code>lamps.reset(); for (let i = 0; i &lt; 12; i++) { if (i % 2 === 0) lamps.on(i) }</code>"
+    ],
+    debrief:"<p>Loops are where a person stops competing with a computer. Anything you'd do by hand more than about three times — try every combination, check every row, click every tile — is a loop.</p><p>That's the vault keypad brute force, and it's the reflex bot, and it's most of the paid work in the world.</p>",
+    mount:function(stage, api){
+      var state = new Array(12).fill(false);
+      var lamps = {
+        state: state,
+        on:function(i){ if (i >= 0 && i < 12) state[i] = true; return "lamp " + i + " on"; },
+        off:function(i){ if (i >= 0 && i < 12) state[i] = false; return "lamp " + i + " off"; },
+        reset:function(){ for (var i=0;i<12;i++) state[i] = false; return "all lamps off"; }
+      };
+      stage.innerHTML = '<div class="lamprow" id="d6r"></div><div class="status" id="d6s" style="text-align:center">0 of 12 lit</div>';
+      var row = $("d6r");
+      for (var i=0;i<12;i++){
+        var d = document.createElement("div");
+        d.className = "lamp"; d.innerHTML = '<i></i><span>'+i+'</span>';
+        row.appendChild(d);
+      }
+      loop(function(){
+        var lit = 0;
+        for (var i=0;i<12;i++){
+          row.children[i].classList.toggle("lit", state[i]);
+          if (state[i]) lit++;
+        }
+        $("d6s").textContent = lit + " of 12 lit";
+      });
+      return { scope:{ lamps:lamps }, source:[
+        "// the anatomy of a for loop",
+        "",
+        "for (let i = 0;  i < 12;  i++) {",
+        "//   ^start      ^keep going  ^each pass",
+        "  lamps.on(i);",
+        "}",
+        "",
+        "// with a condition inside",
+        "for (let i = 0; i < 12; i++) {",
+        "  if (i % 2 === 0) lamps.on(i);   // % is the remainder: even numbers give 0",
+        "}",
+        "",
+        "// lamps.on(i) · lamps.off(i) · lamps.reset() · lamps.state"
+      ].join("\n") };
+    }
+  },
+
+  {
+    key:"d7", n:"A7", group:"train", name:"Lists of Things", machine:"CARGO MANIFEST · BAY 4", tool:"CONSOLE", tab:"console",
+    body:"<p>An <b>array</b> is an ordered list, written in square brackets, indexed from zero like a string. This one holds six crate objects.</p><p>The two moves worth knowing straight away: <code>filter</code> keeps the items matching a test, and <code>map</code> converts every item into something else. Both hand you back a <em>new</em> list.</p>",
+    goal:"Count the crates, pull one out by position, then filter and map the list.",
+    tasks:[
+      { label:"How many — <code>crates.length</code>", test:function(c){ return /crates\.length/.test(c.code); } },
+      { label:"The third crate — <code>crates[2]</code>", test:function(c){ return /crates\s*\[\s*\d+\s*\]/.test(c.code); } },
+      { label:"Only the heavy ones — <code>crates.filter(c =&gt; c.weight &gt; 50)</code>", test:function(c){ return /\.filter\s*\(/.test(c.code) && Array.isArray(c.result); } },
+      { label:"Just their ids — <code>crates.map(c =&gt; c.id)</code>", test:function(c){ return /\.map\s*\(/.test(c.code) && Array.isArray(c.result); } }
+    ],
+    hints:[
+      "<code>crates[0]</code> is the first, <code>crates[2]</code> is the third. Add a dot to reach inside one: <code>crates[2].weight</code>.",
+      "<code>c =&gt; c.weight &gt; 50</code> is a throwaway function: 'given a crate c, is its weight over 50?'. filter runs it on every crate and keeps the trues.",
+      "map is the same shape but converts instead of keeping: <code>crates.map(c =&gt; c.id)</code> turns six crate objects into six ids."
+    ],
+    debrief:"<p><code>filter</code> and <code>map</code> are how you handle data without writing loops by hand, and they chain: <code>crates.filter(c =&gt; c.weight &gt; 50).map(c =&gt; c.id)</code> gives you the ids of the heavy ones in one line.</p><p>This is the shape of nearly all real scripting work — take a list, narrow it, reshape it, report it.</p>",
+    mount:function(stage, api){
+      var kinds = ["ration packs","coolant","spare arms","paperwork","reactor core","lamps","ballast","dried fish","cabling"];
+      var crates = [], used = [];
+      while (crates.length < 6){
+        var k = pick(kinds);
+        if (used.indexOf(k) >= 0) continue;
+        used.push(k);
+        crates.push({ id:"C-0"+(crates.length+1), contents:k, weight:(crates.length % 2 ? ri(55,140) : ri(3,48)) });
+      }
+      stage.innerHTML =
+        '<div class="tblwrap"><table class="tbl"><thead><tr><th>#</th><th>ID</th><th>CONTENTS</th><th style="text-align:right">WEIGHT</th></tr></thead><tbody>'+
+        crates.map(function(c, i){
+          return "<tr><td>"+i+"</td><td>"+esc(c.id)+"</td><td>"+esc(c.contents)+"</td><td style='text-align:right'>"+c.weight+"</td></tr>";
+        }).join("")+"</tbody></table></div>";
+      return { scope:{ crates:crates }, source:[
+        "const crates = [",
+        '  { id: "C-01", contents: "ration packs", weight: 22 },',
+        '  { id: "C-02", contents: "coolant",      weight: 81 },',
+        "  // ...four more",
+        "];",
+        "",
+        "crates.length              // 6",
+        "crates[2]                  // the THIRD crate — counting starts at 0",
+        "crates[2].weight           // reach inside it with a dot",
+        "",
+        "crates.filter(c => c.weight > 50)   // keep the ones that pass the test",
+        "crates.map(c => c.id)               // turn each one into something else",
+        "",
+        "// c => c.weight > 50  is a small function:",
+        "// 'given c, hand back whether its weight is over 50'"
+      ].join("\n") };
+    }
+  },
+
+  {
+    key:"d8", n:"A8", group:"train", name:"Code That Waits", machine:"SIGNAL BEACON · MAST 7", tool:"CONSOLE", tab:"console",
+    body:"<p>Not everything happens the instant you press Enter. <code>setTimeout(fn, ms)</code> runs something <b>once, later</b>. <code>setInterval(fn, ms)</code> runs it <b>over and over</b> until you stop it.</p><p>Both take a function as the thing to run — usually written inline as <code>() =&gt; beacon.pulse()</code>, meaning 'a function that, when run, pulses the beacon'.</p>",
+    goal:"Pulse the beacon by hand, then on a delay, then automatically until it hits 20 — and stop it cleanly.",
+    tasks:[
+      { label:"By hand — <code>beacon.pulse()</code>", test:function(c){ return /beacon\.pulse\s*\(/.test(c.code); } },
+      { label:"On a delay — <code>setTimeout(() =&gt; beacon.pulse(), 2000)</code>, then wait", test:function(c){ return /setTimeout\s*\(/.test(c.code); } },
+      { label:"On repeat until the count passes 20 — <code>setInterval(() =&gt; beacon.pulse(), 200)</code>", test:function(c){ return c.scope.beacon.pulses >= 20; } },
+      { label:"Stop it — <code>stopAll()</code>", test:function(c){ return /stopAll\s*\(/.test(c.code) && c.scope.beacon.pulses >= 20; } }
+    ],
+    hints:[
+      "The number is milliseconds: 1000 is one second, 200 is five times a second.",
+      "<code>() =&gt; beacon.pulse()</code> is a function you're handing over to be run later. Write <code>beacon.pulse()</code> on its own there and it runs immediately, once — a very common mistake.",
+      "<code>stopAll()</code> cancels every timer this page has running. Without it, that interval keeps firing forever."
+    ],
+    debrief:"<p>An interval is a bot. <code>setInterval(() =&gt; { read something; act on it }, 30)</code> is the entire skeleton of the reflex trial in level 06, and of every scraper, poller and auto-clicker ever written.</p><p><strong>That's the training track done.</strong> You now have values, objects, functions, conditions, strings, loops, lists and timers — which is genuinely most of what the six break-in levels use. Go start on level 01.</p>",
+    mount:function(stage, api){
+      var beacon = { pulses:0, lastAt:0, pulse:function(){ this.pulses++; this.lastAt = Date.now(); return this.pulses; } };
+      stage.innerHTML =
+        '<div class="sheet"><div class="cell"><span class="k">PULSES</span><span class="v big readout" id="d8p">0</span></div>'+
+        '<div class="cell"><span class="k">TARGET</span><span class="v readout">20</span></div></div>'+
+        '<div class="beacon" id="d8b"></div><div class="status" style="text-align:center">mast 7 · dark</div>';
+      loop(function(){
+        $("d8p").textContent = beacon.pulses;
+        var fresh = Date.now() - beacon.lastAt < 140;
+        $("d8b").classList.toggle("flash", fresh);
+      });
+      return { scope:{ beacon:beacon }, source:[
+        "// run something ONCE, later",
+        "setTimeout(() => beacon.pulse(), 2000);    // 2000ms = 2 seconds",
+        "",
+        "// run something OVER AND OVER",
+        "setInterval(() => beacon.pulse(), 200);    // five times a second, forever",
+        "",
+        "// stop every timer on the page",
+        "stopAll();",
+        "",
+        "// () => beacon.pulse()   is a function handed over to run LATER",
+        "// beacon.pulse()         runs it RIGHT NOW, once  <- common mistake"
+      ].join("\n") };
+    }
+  }];
+
+  HACKS.forEach(function(L){ L.group = "hack"; });
+  TRAIN.forEach(function(L){ L.group = "train"; });
+  var LEVELS = READ.concat(MEM, TRAIN, HACKS);
+
+  /* ───────── daily engine ───────── */
+  var XP = { read:20, memory:20, train:25, hack:40, daily:0 };
+  var DAY_MS = 86400000;
+  function dayStamp(d){
+    d = d || new Date();
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+  }
+  var TODAY_KEY = dayStamp();
+  var daily = {};
+  try { daily = JSON.parse(localStorage.getItem("bpa.daily") || "{}") || {}; } catch(e){ daily = {}; }
+  function dailySave(){ try { localStorage.setItem("bpa.daily", JSON.stringify(daily)); } catch(e){} }
+
+  function pickDailyTasks(){
+    var out = [];
+    function add(k){ if (k && out.indexOf(k) < 0) out.push(k); }
+
+    var weak = shaky(VOCAB.concat(LINES), 1).length > 0;
+    var memPool = ["m1"];
+    if (rounds.m1) memPool.push("m2", "m3");
+    if (rounds.m2 && rounds.m3) memPool.push("m4");
+    add(weak && Math.random() < 0.6 ? "m1" : pick(memPool));
+
+    var rd = READ.slice().sort(function(a,b){ return (rounds[a.key]||0) - (rounds[b.key]||0); });
+    add(rd[0].key);
+
+    var readDone = READ.filter(function(L){ return solved[L.key]; }).length;
+    var trainLeft = TRAIN.filter(function(L){ return !solved[L.key]; });
+    var hackLeft  = HACKS.filter(function(L){ return !solved[L.key]; });
+    if (readDone < 3) add(rd[1].key);
+    else if (trainLeft.length) add(trainLeft[0].key);
+    else if (hackLeft.length) add(hackLeft[0].key);
+    else add(pick(TRAIN.concat(HACKS)).key);
+
+    while (out.length < 3) add(pick(LEVELS.filter(function(L){ return L.group !== "daily"; })).key);
+    return out.slice(0,3);
+  }
+  function ensureToday(){
+    var y = dayStamp(new Date(Date.now() - DAY_MS));
+    if (daily.streak && daily.lastDone !== y && daily.lastDone !== TODAY_KEY){ daily.streak = 0; dailySave(); }
+    if (daily.day === TODAY_KEY && daily.tasks && daily.tasks.length) return;
+    daily.day = TODAY_KEY;
+    daily.tasks = pickDailyTasks().map(function(k){ return { key:k, done:false }; });
+    dailySave();
+  }
+  function awardLevel(L){
+    if (L.group === "daily") return;
+    var gain = XP[L.group] || 10;
+    daily.xp = (daily.xp || 0) + gain;
+    daily.byDay = daily.byDay || {};
+    daily.byDay[TODAY_KEY] = (daily.byDay[TODAY_KEY] || 0) + gain;
+    var t = (daily.tasks || []).filter(function(x){ return x.key === L.key; })[0];
+    if (t) t.done = true;
+    if ((daily.tasks || []).length && daily.tasks.every(function(x){ return x.done; }) && daily.lastDone !== TODAY_KEY){
+      daily.streak = (daily.streak || 0) + 1;
+      daily.best = Math.max(daily.best || 0, daily.streak);
+      daily.lastDone = TODAY_KEY;
+      daily.done = daily.done || {};
+      daily.done[TODAY_KEY] = true;
+    }
+    dailySave(); paintHeader();
+  }
+  function paintHeader(){
+    ensureToday();
+    var done = (daily.tasks || []).filter(function(t){ return t.done; }).length;
+    $("streakN").textContent = daily.streak || 0;
+    $("streakL").textContent = (daily.streak === 1 ? "day streak" : "day streak");
+    $("todayDots").innerHTML = (daily.tasks || []).map(function(t){
+      return '<i class="tdot'+(t.done?" on":"")+'"></i>';
+    }).join("");
+    $("todayN").textContent = done + "/" + (daily.tasks || []).length;
+  }
+  function levelByKey(k){
+    for (var i=0;i<LEVELS.length;i++) if (LEVELS[i].key === k) return { L:LEVELS[i], i:i };
+    return null;
+  }
+
+  var TODAY_LEVEL = {
+    key:"today", n:"", group:"daily", name:"Today", machine:"DAILY SESSION", tool:"HOME", tab:"console",
+    hints:[], debrief:"",
+    body:"<p>Three things a day. They're chosen for you each morning — a memory round, a reading round, and whatever comes next in your progression — and they're picked from wherever you're weakest, so the list shifts as you improve.</p><p>Finish all three and the day counts. Miss a day and the streak goes back to zero, which is the only real rule here.</p>",
+    goal:"Clear today's three. That's the whole day.",
+    mount:function(stage, api){
+      ensureToday();
+      function render(){
+        var tasks = daily.tasks || [];
+        var done = tasks.filter(function(t){ return t.done; }).length;
+        var allDone = done === tasks.length && tasks.length > 0;
+
+        var strip = "";
+        for (var d = 6; d >= 0; d--){
+          var key = dayStamp(new Date(Date.now() - d*DAY_MS));
+          var hit = (daily.done || {})[key];
+          var isToday = key === TODAY_KEY;
+          strip += '<div class="wday'+(hit?" hit":"")+(isToday?" today":"")+'"><span>'+
+            ["S","M","T","W","T","F","S"][new Date(Date.now() - d*DAY_MS).getDay()]+'</span><i></i></div>';
+        }
+
+        var cards = tasks.map(function(t, i){
+          var found = levelByKey(t.key);
+          if (!found) return "";
+          var L = found.L;
+          var kindLabel = L.group === "read" ? "READING" : L.group === "memory" ? "MEMORY" : L.group === "train" ? "DRILL" : "BREAK-IN";
+          return '<div class="dtask'+(t.done?" done":"")+'">'+
+            '<span class="dmark">'+(t.done?"✓":(i+1))+'</span>'+
+            '<div class="dmeta"><span class="dkind">'+kindLabel+' · '+esc(L.n || "")+'</span>'+
+            '<span class="dname">'+esc(L.name)+'</span></div>'+
+            (t.done ? '<span class="ddone">DONE</span>'
+                    : '<button class="btn" data-go="'+found.i+'">GO</button>')+
+          '</div>';
+        }).join("");
+
+        var groups = [["read","READING",READ.length],["memory","MEMORY",MEM.length],["train","DRILLS",TRAIN.length],["hack","BREAK-INS",HACKS.length]];
+        var prog = groups.map(function(g){
+          var n = LEVELS.filter(function(L){ return L.group === g[0] && solved[L.key]; }).length;
+          return '<div class="pgrp"><span class="pk">'+g[1]+'</span><div class="pbar"><i style="width:'+(n/g[2]*100)+'%"></i></div><span class="pv">'+n+'/'+g[2]+'</span></div>';
+        }).join("");
+
+        stage.innerHTML =
+          '<div class="home">'+
+            '<div class="hstat">'+
+              '<div class="bignum">'+(daily.streak || 0)+'</div>'+
+              '<div class="bigl">DAY STREAK'+((daily.best||0) > (daily.streak||0) ? '<span>best '+daily.best+'</span>' : "")+'</div>'+
+            '</div>'+
+            '<div class="week">'+strip+'</div>'+
+            '<div class="qhead" style="margin-top:18px">'+(allDone
+              ? "TODAY IS DONE · COME BACK TOMORROW"
+              : "TODAY · "+done+" OF "+tasks.length+" COMPLETE")+'</div>'+
+            '<div class="dtasks">'+cards+'</div>'+
+            (allDone ? '<p class="qtext" style="color:var(--mint);margin-top:14px">Streak is safe. Anything else you do today is extra — pick any level from the list and run a round for the XP.</p>' : "")+
+            '<div class="qhead" style="margin-top:20px">OVERALL</div>'+
+            '<div class="prog">'+prog+'</div>'+
+            '<div class="xprow"><span>'+(daily.xp || 0)+' XP total</span><span>'+((daily.byDay||{})[TODAY_KEY] || 0)+' today</span></div>'+
+          '</div>';
+
+        Array.prototype.forEach.call(stage.querySelectorAll("[data-go]"), function(b){
+          b.addEventListener("click", function(){ show(Number(b.dataset.go)); });
+        });
+      }
+      render();
+      return { scope:{}, source:[
+        "// how the day is chosen",
+        "//",
+        "// 1. a memory round — flashcards if anything is marked shaky,",
+        "//    otherwise whichever exam you have unlocked",
+        "// 2. a reading round — the one you have run the fewest times",
+        "// 3. the next thing in your progression:",
+        "//      under 3 reading levels done  -> another reading round",
+        "//      drills left                  -> the next drill",
+        "//      otherwise                    -> the next break-in",
+        "//",
+        "// streak = consecutive days with all three finished.",
+        "// miss a day and it resets. your best is kept either way.",
+        "//",
+        "// all of it lives in this browser only. nothing is sent anywhere."
+      ].join("\n") };
+    }
+  };
+
+  LEVELS.unshift(TODAY_LEVEL);
+
+  /* ───────── progress ───────── */
+  var solved = {}, rounds = {};
+  try { solved = JSON.parse(localStorage.getItem("bpa.solved") || "{}") || {}; } catch(e){ solved = {}; }
+  try { rounds = JSON.parse(localStorage.getItem("bpa.rounds") || "{}") || {}; } catch(e){ rounds = {}; }
+  function persist(){
+    try { localStorage.setItem("bpa.solved", JSON.stringify(solved)); localStorage.setItem("bpa.rounds", JSON.stringify(rounds)); } catch(e){}
+  }
+
+  /* ───────── rail + score ───────── */
+  var rail = $("rail"), current = 0;
+  var lastGroup = null;
+  LEVELS.forEach(function(L, i){
+    if (L.group !== lastGroup){
+      lastGroup = L.group;
+      var h = document.createElement("div");
+      h.className = "rail-head";
+      h.textContent = (L.group === "daily") ? "DAILY" : (L.group === "read") ? "READING" : (L.group === "memory") ? "MEMORY" : (L.group === "train") ? "TRAINING" : "BREAK-INS";
+      rail.appendChild(h);
+    }
+    var b = document.createElement("button");
+    b.className = "lv"; b.type = "button";
+    b.innerHTML = '<span class="n">'+L.n+'</span><span>'+esc(L.name)+'</span><span class="tick">✓</span>';
+    b.addEventListener("click", function(){ show(i); });
+    rail.appendChild(b);
+    L.el = b;
+  });
+  function renderRounds(L){
+    var n = rounds[L.key] || 0;
+    var el = document.getElementById("roundChip");
+    if (el) el.textContent = n > 1 ? ("×" + n + " ROUNDS") : (n === 1 ? "×1 ROUND" : "");
+  }
+  function paintProgress(){
+    var done = 0;
+    LEVELS.forEach(function(L){
+      var ok = !!solved[L.key];
+      L.el.classList.toggle("done", ok);
+      if (ok) done++;
+    });
+    paintHeader();
+  }
+
+  /* ───────── tool deck ───────── */
+  var TABS = ["inspect","source","console"];
+  function selectTab(name){
+    TABS.forEach(function(t){
+      $("tab-"+t).setAttribute("aria-selected", String(t === name));
+      $("pane-"+t).hidden = (t !== name);
+    });
+    if (name === "inspect") renderDom();
+    if (name === "console") setTimeout(function(){ $("cmd").focus(); }, 0);
+  }
+  TABS.forEach(function(t){ $("tab-"+t).addEventListener("click", function(){ selectTab(t); }); });
+
+  function highlight(code){
+    var s = esc(code);
+    s = s.replace(/(&lt;\/?)([a-zA-Z][\w-]*)/g, '$1<span class="tg">$2</span>');
+    s = s.replace(/(\/\/[^\n]*|&lt;!--[\s\S]*?--&gt;)|('(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*")|\b(const|let|var|function|return|if|else|for|of|in|new|class|this|typeof|true|false|null|undefined)\b|\b(\d+)\b/g,
+      function(m, cm, st, kw, nu){
+        if (cm) return '<span class="cm">'+cm+'</span>';
+        if (st) return '<span class="st">'+st+'</span>';
+        if (kw) return '<span class="kw">'+kw+'</span>';
+        return '<span class="nu">'+nu+'</span>';
+      });
+    return s;
+  }
+  function renderDom(){
+    var out = [];
+    (function walk(node, d){
+      var pad = "  ".repeat(d);
+      for (var i=0;i<node.childNodes.length;i++){
+        var c = node.childNodes[i];
+        if (c.nodeType === 3){
+          var t = c.nodeValue.replace(/\s+/g," ").trim();
+          if (t) out.push(pad + t);
+        } else if (c.nodeType === 1){
+          var tag = c.tagName.toLowerCase(), attrs = "";
+          for (var a=0;a<c.attributes.length;a++){
+            attrs += " " + c.attributes[a].name + '="' + c.attributes[a].value + '"';
+          }
+          var simple = c.children.length === 0 && c.textContent.trim().length < 40;
+          if (simple && c.textContent.trim()){
+            out.push(pad + "<" + tag + attrs + ">" + c.textContent.trim() + "</" + tag + ">");
+          } else {
+            out.push(pad + "<" + tag + attrs + ">");
+            walk(c, d+1);
+            out.push(pad + "</" + tag + ">");
+          }
+        }
+      }
+    })($("stage"), 0);
+    var s = esc(out.join("\n"));
+    s = s.replace(/(&lt;\/?)([a-zA-Z][\w-]*)/g, '$1<span class="tg">$2</span>');
+    s = s.replace(/([a-zA-Z-]+)=(&quot;|")([^"&]*)(&quot;|")/g, '<span class="at">$1</span>=<span class="st">"$3"</span>');
+    $("dom").innerHTML = s;
+  }
+
+  /* ───────── console ───────── */
+  var out = $("out"), history = [], hIndex = -1, mem = {};
+  function print(cls, text){
+    var d = document.createElement("div");
+    d.className = cls; d.textContent = text;
+    out.appendChild(d); out.scrollTop = out.scrollHeight;
+  }
+  function fmt(v, depth){
+    depth = depth || 0;
+    if (v === null) return "null";
+    if (v === undefined) return "undefined";
+    var t = typeof v;
+    if (t === "string") return '"' + v + '"';
+    if (t === "number" || t === "boolean") return String(v);
+    if (t === "function") return "ƒ " + (v.name || "anonymous") + "()";
+    if (Array.isArray(v)){
+      if (depth > 1) return "[…]";
+      return "[" + v.slice(0,12).map(function(x){ return fmt(x, depth+1); }).join(", ") + (v.length>12?", …":"") + "]";
+    }
+    if (t === "object"){
+      if (depth > 1) return "{…}";
+      var keys = [];
+      for (var k in v) keys.push(k);
+      return "{ " + keys.slice(0,12).map(function(k){
+        var val;
+        try { val = fmt(v[k], depth+1); } catch(e){ val = "…"; }
+        return k + ": " + val;
+      }).join(", ") + (keys.length>12?", …":"") + " }";
+    }
+    return String(v);
+  }
+  function baseScope(){
+    var s = {
+      mem: mem,
+      log: function(){ print("log", Array.prototype.map.call(arguments, function(a){ return typeof a === "string" ? a : fmt(a); }).join(" ")); },
+      clear: function(){ out.innerHTML = ""; return undefined; },
+      stopAll: function(){ var n = timers.length; killTimersOnly(); return "stopped " + n + " timer" + (n===1?"":"s"); },
+      setInterval: function(fn, ms){ return track(window.setInterval(fn, ms)); },
+      setTimeout: function(fn, ms){ return track(window.setTimeout(fn, ms)); },
+      clearInterval: function(id){ return window.clearInterval(id); },
+      help: function(){
+        var names = Object.keys(active.scope).filter(function(k){ return ["log","clear","help","setInterval","setTimeout","clearInterval","stopAll"].indexOf(k) < 0; });
+        return "this level gives you: " + names.join(", ") + "  ·  plus log(), mem, stopAll(), clear()";
+      }
+    };
+    s.console = { log: s.log };
+    return s;
+  }
+  function killTimersOnly(){ timers.forEach(function(id){ clearInterval(id); clearTimeout(id); }); timers = []; }
+
+  function run(code){
+    if (!code.trim()) return;
+    print("in", code);
+    history.push(code); hIndex = history.length;
+    try {
+      var keys = Object.keys(active.scope);
+      var vals = keys.map(function(k){ return active.scope[k]; });
+      var fn = new Function(keys.concat(["__src"]).join(","), "return eval(__src)");
+      var r = fn.apply(null, vals.concat([code]));
+      if (r !== undefined) print("res", fmt(r));
+      if (active.onRun) { try { active.onRun(r); } catch(e){} }
+      checkTasks(code, r);
+    } catch(err){
+      print("err", (err && err.message) ? (err.name + ": " + err.message) : String(err));
+      checkTasks(code, undefined);
+    }
+  }
+  $("run").addEventListener("click", function(){ run($("cmd").value); $("cmd").value = ""; });
+  $("cmd").addEventListener("keydown", function(e){
+    if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); run(this.value); this.value = ""; }
+    else if (e.key === "ArrowUp" && this.selectionStart === 0 && history.length){
+      e.preventDefault(); hIndex = Math.max(0, hIndex-1); this.value = history[hIndex];
+    } else if (e.key === "ArrowDown" && history.length){
+      if (hIndex < history.length-1){ hIndex++; this.value = history[hIndex]; }
+      else { hIndex = history.length; this.value = ""; }
+    }
+  });
+
+  /* ───────── checklists ───────── */
+  var taskState = null, checkTimer = null, currentApi = null;
+  function renderTasks(L){
+    var el = $("tasks");
+    if (!L.tasks || !taskState){ el.hidden = true; return; }
+    el.hidden = false;
+    var done = taskState.filter(Boolean).length;
+    el.innerHTML = '<div class="tasks-head">CHECKLIST · '+done+' OF '+L.tasks.length+'</div>' +
+      L.tasks.map(function(t, i){
+        return '<div class="task'+(taskState[i]?" done":"")+'"><span class="mk">'+(taskState[i]?"✓":"○")+'</span><span>'+t.label+'</span></div>';
+      }).join("");
+  }
+  function checkTasks(code, result){
+    var L = LEVELS[current];
+    if (!L.tasks || !taskState) return;
+    var ctx = { code: code || "", result: result, scope: active.scope };
+    var changed = false;
+    L.tasks.forEach(function(t, i){
+      if (taskState[i]) return;
+      try { if (t.test(ctx)){ taskState[i] = true; changed = true; } } catch(e){}
+    });
+    if (changed){
+      renderTasks(L);
+      if (taskState.every(Boolean) && currentApi && !solved[L.key]) currentApi.solve(L.n + " · " + L.name.toUpperCase());
+    }
+  }
+
+  /* ───────── hints ───────── */
+  function renderHints(L){
+    var shown = 0;
+    var btns = $("hintBtns"), list = $("hintList");
+    if (!L.hints || !L.hints.length){ btns.innerHTML = ""; list.innerHTML = ""; return; }
+    function draw(){
+      btns.innerHTML = L.hints.map(function(_, i){
+        return '<button class="hint-btn'+(i < shown ? " used":"")+'" data-i="'+i+'">HINT '+(i+1)+'</button>';
+      }).join("");
+      Array.prototype.forEach.call(btns.querySelectorAll("button"), function(b){
+        b.addEventListener("click", function(){ shown = Math.max(shown, Number(b.dataset.i)+1); draw(); });
+      });
+      list.innerHTML = L.hints.slice(0, shown).map(function(h){ return "<li>"+h+"</li>"; }).join("");
+    }
+    if (L.key === "stencil" && !solved.stencil) shown = 1;
+    draw();
+  }
+
+  /* ───────── level switching ───────── */
+  var active = { scope:{} };
+  function show(i){
+    current = i;
+    var L = LEVELS[i];
+    killTimers();
+    if (checkTimer){ clearInterval(checkTimer); checkTimer = null; }
+    LEVELS.forEach(function(x, j){ x.el.setAttribute("aria-current", String(j === i)); });
+
+    var kind = (L.group === "train") ? "DRILL " : (L.group === "read") ? "ROUND " : (L.group === "memory") ? "" : "LEVEL ";
+    $("winK").textContent = (L.group === "hack") ? "CRACKED · CODE" : "ROUND CLEARED";
+    var roundTxt = (rounds[L.key]||0) > 1 ? "×"+rounds[L.key]+" ROUNDS" : ((rounds[L.key]||0) === 1 ? "×1 ROUND" : "");
+    $("briefTop").innerHTML = (L.group === "daily") ? '<span class="chip tool">HOME</span>' :
+      '<span class="chip">'+kind+L.n+'</span>'+
+      '<span class="chip tool">'+L.tool+'</span>'+
+      (solved[L.key] ? '<span class="chip solved">✓ '+(L.group==="hack"?"CRACKED":"CLEARED")+'</span>' : "")+
+      (roundTxt ? '<span class="chip" id="roundChip">'+roundTxt+'</span>' : "");
+    $("lvTitle").textContent = L.name;
+    $("lvBody").innerHTML = L.body;
+    $("lvGoal").textContent = L.goal;
+    $("stageName").textContent = L.machine;
+
+    var stage = $("stage");
+    stage.innerHTML = "";
+    out.innerHTML = "";
+    $("win").hidden = true;
+
+    var api = {
+      solve: function(code){
+        if (!api.done){
+          api.done = true;
+          rounds[L.key] = (rounds[L.key] || 0) + 1;
+          solved[L.key] = code;
+          persist(); awardLevel(L); paintProgress(); renderRounds(L);
+        }
+        $("win").hidden = false;
+        $("winCode").textContent = code;
+        $("briefTop").innerHTML =
+          '<span class="chip">'+kind+L.n+'</span><span class="chip tool">'+L.tool+'</span>'+
+          '<span class="chip solved">✓ '+(L.group==="hack"?"CRACKED":"CLEARED")+'</span>'+
+          '<span class="chip" id="roundChip">'+((rounds[L.key]||0) > 1 ? "×"+rounds[L.key]+" ROUNDS" : "×1 ROUND")+'</span>';
+      }
+    };
+    currentApi = api;
+    var built = L.mount(stage, api);
+    active = { scope: Object.assign(baseScope(), built.scope), onRun: built.onRun };
+    if (L.tasks){
+      taskState = L.tasks.map(function(){ return false; });
+      renderTasks(L);
+      checkTimer = setInterval(function(){ checkTasks("", undefined); }, 300);
+    } else {
+      taskState = null;
+      $("tasks").hidden = true;
+    }
+    $("src").innerHTML = highlight(built.source);
+    renderHints(L);
+    $("debrief").innerHTML = L.debrief || "";
+
+    print("sys", "— " + L.machine + " —");
+    print("sys", "available here: " + Object.keys(built.scope).join(", ") + (Object.keys(built.scope).length ? "  ·  " : "") + "log(), mem, help(), clear()");
+
+    if (solved[L.key] && L.group === "hack"){ $("win").hidden = false; $("winCode").textContent = solved[L.key]; }
+    var isHome = (L.group === "daily");
+    $("replay").hidden = isHome;
+    $("toolDeck").hidden = isHome;
+    $("asideRow").hidden = isHome;
+    document.querySelector(".goal").hidden = isHome;
+    if (!isHome) selectTab(L.tab);
+    paintProgress();
+  }
+
+  $("replay").addEventListener("click", function(){ show(current); });
+  $("reset").addEventListener("click", function(){
+    solved = {}; rounds = {}; memory = {}; daily = {}; dailySave(); memSave(); persist(); paintProgress(); show(current);
+  });
+
+  paintProgress();
+  ensureToday();
+  show(0);
+})();
+</script>
+
+<script>
+  if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("./sw.js").catch(function(){});
+    });
+  }
+</script>
+</body>
+</html>
